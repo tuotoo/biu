@@ -19,6 +19,7 @@ func init() {
 	})
 }
 
+// Handle transform a biu handler to a restful.RouteFunction.
 func Handle(f func(ctl *Ctx)) restful.RouteFunction {
 	return func(request *restful.Request, response *restful.Response) {
 		f(&Ctx{
@@ -35,6 +36,7 @@ func AddErrDesc(m map[int]string) {
 	}
 }
 
+// Ctx wrap *restful.Request and *restful.Response in one struct.
 type Ctx struct {
 	*restful.Request
 	*restful.Response
@@ -69,7 +71,8 @@ func (ctx *Ctx) ContainsError(err error, code int) bool {
 	return true
 }
 
-// ResponseStdErrCode is a convenience method response a code with msg in Code Desc.
+// ResponseStdErrCode is a convenience method response a code
+// with msg in Code Desc.
 func (ctx *Ctx) ResponseStdErrCode(code int) {
 	msg := codeDesc.m[code]
 	ResponseError(ctx.Response, msg, code)

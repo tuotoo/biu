@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// MIME_HTML_FORM is application/x-www-form-urlencoded header
 const MIME_HTML_FORM = "application/x-www-form-urlencoded"
 
 var swaggerTags []spec.Tag
@@ -44,11 +45,14 @@ func Run(addr string) {
 	run(addr, nil)
 }
 
+// RouteOpt contains some options of route.
 type RouteOpt struct {
 	Auth   bool
 	Errors map[int]string
 }
 
+// Route creates a new Route using the RouteBuilder
+// and add to the ordered list of Routes.
 func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 	if opt != nil {
 		for k, v := range opt.Errors {

@@ -14,11 +14,13 @@ var jwtInfo struct {
 	secret  []byte
 }
 
+// SetJWTInfo sets the options of JWT.
 func SetJWTInfo(timeout int, secret string) {
 	jwtInfo.timeout = time.Minute * time.Duration(timeout)
 	jwtInfo.secret = []byte(secret)
 }
 
+// Sign returns a signed jwt string.
 func Sign(userID string) (token string, err error) {
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": userID,
@@ -27,10 +29,12 @@ func Sign(userID string) (token string, err error) {
 	return jwtToken.SignedString(jwtInfo.secret)
 }
 
+// CheckToken accept a jwt token and returns the uid in token.
 func (ctx *Ctx) CheckToken(token string) (userID string, err error) {
 	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
-			signingErr := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			signingErr := fmt.Errorf("unexpected signing method: %v",
+				token.Header["alg"])
 			Info("parse signing method", Log().Err(signingErr))
 			return nil, signingErr
 		}
@@ -49,6 +53,8 @@ func (ctx *Ctx) CheckToken(token string) (userID string, err error) {
 	return "", errors.New("unexpected token")
 }
 
+// IsLogin gets JWT token in request by OAuth2Extractor,
+// and parse it with CheckToken.
 func (ctx *Ctx) IsLogin() (userID string, err error) {
 	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Request.Request)
 	if err != nil {

@@ -13,6 +13,7 @@ type NS struct {
 	ExternalURL  string       // external url of ExternalDesc
 }
 
+// WS extends *restful.WebService
 type WS struct {
 	*restful.WebService
 }
