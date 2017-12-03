@@ -111,7 +111,9 @@ func CheckError(err error, log *LogEvt) bool {
 	if err == nil {
 		return true
 	}
-	Info("verify error", log.Err(err))
+	if log != nil {
+		Info("verify error", log.Err(err))
+	}
 	return false
 }
 
