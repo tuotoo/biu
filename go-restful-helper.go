@@ -44,10 +44,21 @@ func Run(addr string) {
 	run(addr, nil)
 }
 
-func (ws WS) Route(builder *restful.RouteBuilder, errors map[int]string) {
-	for k, v := range errors {
-		codeDesc.m[k] = v
-		builder = builder.Returns(k, v, nil)
+type RouteOpt struct {
+	Auth   bool
+	Errors map[int]string
+}
+
+func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
+	if opt != nil {
+		for k, v := range opt.Errors {
+			codeDesc.m[k] = v
+			builder = builder.Returns(k, v, nil)
+		}
+		if opt.Auth {
+			builder = builder.Param(ws.HeaderParameter("Authorization", "JWT Token").
+				DefaultValue("bearer ").DataType("string").Required(true))
+		}
 	}
 	ws.WebService.Route(builder)
 }
