@@ -6,6 +6,7 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
 	"github.com/go-openapi/spec"
+	"github.com/tuotoo/biu/swagger-go"
 )
 
 // NewSwaggerService creates a swagger webservice in /swagger
@@ -19,7 +20,7 @@ func NewSwaggerService(info SwaggerInfo) *restful.WebService {
 	}
 	http.Handle(info.RoutePrefix+"/swagger/",
 		http.StripPrefix(info.RoutePrefix,
-			http.FileServer(FS(false)),
+			http.FileServer(swagger.FS(false)),
 		),
 	)
 	return restfulspec.NewOpenAPIService(config)
