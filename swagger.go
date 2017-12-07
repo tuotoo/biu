@@ -9,8 +9,16 @@ import (
 	"github.com/tuotoo/biu/swagger-go"
 )
 
+func (c *Container) NewSwaggerService(info SwaggerInfo) *restful.WebService {
+	return newSwaggerService(info, c.ServeMux)
+}
+
 // NewSwaggerService creates a swagger webservice in /swagger
 func NewSwaggerService(info SwaggerInfo) *restful.WebService {
+	return newSwaggerService(info, http.DefaultServeMux)
+}
+
+func newSwaggerService(info SwaggerInfo, serveMux *http.ServeMux) *restful.WebService {
 	config := restfulspec.Config{
 		WebServices:                   restful.RegisteredWebServices(),
 		APIPath:                       info.RoutePrefix + "/swagger.json",
@@ -18,7 +26,7 @@ func NewSwaggerService(info SwaggerInfo) *restful.WebService {
 		WebServicesURL:                info.WebServicesURL,
 		PostBuildSwaggerObjectHandler: enrichSwaggerObject(info),
 	}
-	http.Handle(info.RoutePrefix+"/swagger/",
+	serveMux.Handle(info.RoutePrefix+"/swagger/",
 		http.StripPrefix(info.RoutePrefix,
 			http.FileServer(swagger.FS(false)),
 		),
