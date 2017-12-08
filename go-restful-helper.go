@@ -38,14 +38,19 @@ func AddServices(prefix string, filters []restful.FilterFunction, wss ...NS) {
 	addService(prefix, filters, restful.DefaultContainer, wss...)
 }
 
+type RunConfig struct {
+	BeforeShutDown func()
+	AfterShutDown  func()
+}
+
 // Run starts up a web server for container.
-func (c *Container) Run(addr string, onShutdown ...func()) {
-	run(addr, c.Container, onShutdown...)
+func (c *Container) Run(addr string, cfg *RunConfig) {
+	run(addr, c.Container, cfg)
 }
 
 // Run starts up a web server with default container.
-func Run(addr string, onShutdown ...func()) {
-	run(addr, nil, onShutdown...)
+func Run(addr string, cfg *RunConfig) {
+	run(addr, nil, cfg)
 }
 
 // RouteOpt contains some options of route.
@@ -114,7 +119,7 @@ func addService(
 	}
 }
 
-func run(addr string, handler http.Handler, onShutdown ...func()) {
+func run(addr string, handler http.Handler, cfg *RunConfig) {
 	address := addr
 	hostAndPort := strings.Split(addr, ":")
 	if len(hostAndPort) == 0 || (len(hostAndPort) > 1 && hostAndPort[1] == "") {
@@ -125,17 +130,20 @@ func run(addr string, handler http.Handler, onShutdown ...func()) {
 		Handler: handler,
 	}
 	go func() {
-		Info("listening", Log().Str("addr", addr))
+		Info("listening", Log().Str("addr", address))
 		Fatal("listening", Log().Err(server.ListenAndServe()))
 	}()
 
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	Info("signal receive", Log().Interface("ch", <-ch))
-	for _, f := range onShutdown {
-		f()
+	if cfg != nil {
+		cfg.BeforeShutDown()
 	}
 	server.Shutdown(nil)
+	if cfg != nil {
+		cfg.AfterShutDown()
+	}
 	Info("shut down", Log())
 }
 
