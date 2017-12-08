@@ -9,6 +9,7 @@ import (
 	"github.com/tuotoo/biu/swagger-go"
 )
 
+// NewSwaggerService creates a swagger webservice in /swagger
 func (c *Container) NewSwaggerService(info SwaggerInfo) *restful.WebService {
 	return newSwaggerService(info, c.ServeMux)
 }

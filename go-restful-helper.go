@@ -2,7 +2,10 @@ package biu
 
 import (
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
@@ -36,13 +39,13 @@ func AddServices(prefix string, filters []restful.FilterFunction, wss ...NS) {
 }
 
 // Run starts up a web server for container.
-func (c *Container) Run(addr string) {
-	run(addr, c.Container)
+func (c *Container) Run(addr string, onShutdown ...func()) {
+	run(addr, c.Container, onShutdown...)
 }
 
 // Run starts up a web server with default container.
-func Run(addr string) {
-	run(addr, nil)
+func Run(addr string, onShutdown ...func()) {
+	run(addr, nil, onShutdown...)
 }
 
 // RouteOpt contains some options of route.
@@ -111,9 +114,29 @@ func addService(
 	}
 }
 
-func run(addr string, handler http.Handler) {
-	Info("listening", Log().Str("addr", addr))
-	Fatal("listening", Log().Err(http.ListenAndServe(addr, handler)))
+func run(addr string, handler http.Handler, onShutdown ...func()) {
+	address := addr
+	hostAndPort := strings.Split(addr, ":")
+	if len(hostAndPort) == 0 || (len(hostAndPort) > 1 && hostAndPort[1] == "") {
+		address = ":8080"
+	}
+	server := http.Server{
+		Addr:    address,
+		Handler: handler,
+	}
+	go func() {
+		Info("listening", Log().Str("addr", addr))
+		Fatal("listening", Log().Err(server.ListenAndServe()))
+	}()
+
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	Info("signal receive", Log().Interface("ch", <-ch))
+	for _, f := range onShutdown {
+		f()
+	}
+	server.Shutdown(nil)
+	Info("shut down", Log())
 }
 
 // LogFilter logs
