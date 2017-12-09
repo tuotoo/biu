@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -120,6 +121,19 @@ func addService(
 }
 
 func run(addr string, handler http.Handler, cfg *RunConfig) {
+	// log errors
+	lenCodeDesc := len(codeDesc.m)
+	if lenCodeDesc > 0 {
+		codeArr := make([]int, lenCodeDesc)
+		i := 0
+		for k := range codeDesc.m {
+			codeArr[i] = k
+			i++
+		}
+		sort.Ints(codeArr)
+		Info("errors", Log().Int("from", codeArr[0]).Int("to", codeArr[lenCodeDesc-1]))
+	}
+
 	address := addr
 	hostAndPort := strings.Split(addr, ":")
 	if len(hostAndPort) == 0 || (len(hostAndPort) > 1 && hostAndPort[1] == "") {
