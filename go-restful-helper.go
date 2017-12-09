@@ -151,11 +151,11 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	Info("signal receive", Log().Interface("ch", <-ch))
-	if cfg != nil {
+	if cfg != nil && cfg.BeforeShutDown != nil {
 		cfg.BeforeShutDown()
 	}
 	server.Shutdown(nil)
-	if cfg != nil {
+	if cfg != nil && cfg.AfterShutDown != nil {
 		cfg.AfterShutDown()
 	}
 	Info("shut down", Log())
