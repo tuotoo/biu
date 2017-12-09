@@ -18,6 +18,7 @@ type WS struct {
 	*restful.WebService
 }
 
+// CtlInterface is the interface of controllers
 type CtlInterface interface {
 	WebService(WS)
 }
