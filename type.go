@@ -7,7 +7,7 @@ import (
 // NS contains configuration of a namespace
 type NS struct {
 	NameSpace    string       // url parent of controller
-	Controller   ctlInterface // controller implement ctlInterface
+	Controller   CtlInterface // controller implement CtlInterface
 	Desc         string       // description of controller of namespace
 	ExternalDesc string       // external documentation of controller
 	ExternalURL  string       // external url of ExternalDesc
@@ -18,7 +18,7 @@ type WS struct {
 	*restful.WebService
 }
 
-type ctlInterface interface {
+type CtlInterface interface {
 	WebService(WS)
 }
 
