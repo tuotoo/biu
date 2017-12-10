@@ -8,6 +8,7 @@ import (
 	"github.com/tuotoo/biu/rule-go"
 )
 
+// NewRBACModel returns a basic RBAC model.
 func NewRBACModel() (model.Model, error) {
 	m := casbin.NewModel()
 	fs := rule.FS(false)

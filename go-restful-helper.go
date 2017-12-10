@@ -42,6 +42,7 @@ func AddServices(prefix string, filters []restful.FilterFunction, wss ...NS) {
 	addService(prefix, filters, restful.DefaultContainer, wss...)
 }
 
+// RunConfig is the running config of container.
 type RunConfig struct {
 	BeforeShutDown func()
 	AfterShutDown  func()
@@ -80,8 +81,10 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 }
 
 func addService(
-	prefix string, filters []restful.FilterFunction,
-	container *restful.Container, wss ...NS,
+	prefix string,
+	filters []restful.FilterFunction,
+	container *restful.Container,
+	wss ...NS,
 ) {
 	for _, v := range wss {
 		// build web service
@@ -134,7 +137,11 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 			i++
 		}
 		sort.Ints(codeArr)
-		Info("errors", Log().Int("from", codeArr[0]).Int("to", codeArr[lenCodeDesc-1]))
+		Info(
+			"errors", Log().
+				Int("from", codeArr[0]).
+				Int("to", codeArr[lenCodeDesc-1]),
+		)
 	}
 
 	address := addr

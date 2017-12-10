@@ -19,7 +19,10 @@ func NewSwaggerService(info SwaggerInfo) *restful.WebService {
 	return newSwaggerService(info, http.DefaultServeMux)
 }
 
-func newSwaggerService(info SwaggerInfo, serveMux *http.ServeMux) *restful.WebService {
+func newSwaggerService(
+	info SwaggerInfo,
+	serveMux *http.ServeMux,
+) *restful.WebService {
 	config := restfulspec.Config{
 		WebServices:                   restful.RegisteredWebServices(),
 		APIPath:                       info.RoutePrefix + "/swagger.json",
