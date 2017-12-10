@@ -1,6 +1,7 @@
 package biu
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,9 +12,11 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
 	"github.com/go-openapi/spec"
+	"github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
 
+// nolint
 // MIME_HTML_FORM is application/x-www-form-urlencoded header
 const MIME_HTML_FORM = "application/x-www-form-urlencoded"
 
@@ -148,17 +151,17 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 		Fatal("listening", Log().Err(server.ListenAndServe()))
 	}()
 
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	Info("signal receive", Log().Interface("ch", <-ch))
 	if cfg != nil && cfg.BeforeShutDown != nil {
 		cfg.BeforeShutDown()
 	}
-	server.Shutdown(nil)
+	Info("shut down", Log().Err(server.Shutdown(context.TODO())))
 	if cfg != nil && cfg.AfterShutDown != nil {
 		cfg.AfterShutDown()
 	}
-	Info("shut down", Log())
+	Info("server is down gracefully", Log())
 }
 
 // LogFilter logs
