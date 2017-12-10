@@ -1,11 +1,11 @@
 package biu
 
 import (
-	"encoding/json"
 	"net/http"
 	"sync"
 
 	"github.com/emicklei/go-restful"
+	"github.com/json-iterator/go"
 )
 
 var codeDesc struct {
@@ -121,9 +121,17 @@ func CheckError(err error, log *LogEvt) bool {
 }
 
 func commonResponse(w http.ResponseWriter, resp CommonResp) {
-	w.Header().Set(restful.HEADER_ContentType, restful.MIME_JSON)
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	if err := writeJSON(w, http.StatusOK, resp); err != nil {
 		Warn("json encode", Log().Err(err))
 	}
+}
+
+func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
+	if v == nil {
+		resp.WriteHeader(status)
+		return nil
+	}
+	resp.Header().Set(restful.HEADER_ContentType, restful.MIME_JSON)
+	resp.WriteHeader(status)
+	return jsoniter.NewEncoder(resp).Encode(v)
 }

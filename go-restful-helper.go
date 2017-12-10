@@ -187,3 +187,31 @@ func LogFilter() restful.FilterFunction {
 			Int("content_length", resp.ContentLength())).Msg("req")
 	}
 }
+
+func init() {
+	restful.RegisterEntityAccessor(restful.MIME_JSON,
+		newJsoniterEntityAccessor())
+}
+
+func newJsoniterEntityAccessor() restful.EntityReaderWriter {
+	return jsoniterEntityAccess{}
+}
+
+type jsoniterEntityAccess struct{}
+
+// Read unmarshalls the value from JSON using jsoniter.
+func (jsoniterEntityAccess) Read(req *restful.Request, v interface{}) error {
+	decoder := jsoniter.NewDecoder(req.Request.Body)
+	decoder.UseNumber()
+	return decoder.Decode(v)
+}
+
+// Write marshalls the value to JSON using jsoniter
+// and set the Content-Type Header.
+func (j jsoniterEntityAccess) Write(
+	resp *restful.Response,
+	status int,
+	v interface{},
+) error {
+	return writeJSON(resp, status, v)
+}
