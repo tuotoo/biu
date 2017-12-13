@@ -29,6 +29,15 @@ func Handle(f func(ctl *Ctx)) restful.RouteFunction {
 	}
 }
 
+func ToStdHandler(k func(ctx *Ctx)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		k(&Ctx{
+			Request:  restful.NewRequest(r),
+			Response: restful.NewResponse(w),
+		})
+	}
+}
+
 // AddErrDesc adds map of code-message to stdCodeDesc
 func AddErrDesc(m map[int]string) {
 	for k, v := range m {
