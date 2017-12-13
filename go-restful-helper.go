@@ -3,6 +3,7 @@ package biu
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/signal"
 	"sort"
@@ -169,6 +170,52 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 		cfg.AfterShutDown()
 	}
 	Info("server is down gracefully", Log())
+}
+
+type ctlCtx struct {
+	function restful.RouteFunction
+	method   string
+	path     string
+}
+
+// CtlFuncs is a map contains all handler of a controller.
+// the key of CtlFuncs is "Method Path" of handler.
+type CtlFuncs map[string]ctlCtx
+
+// GetCtlFuncs returns the handler map of a controller.
+func GetCtlFuncs(ctlInterface CtlInterface) CtlFuncs {
+	ws := new(restful.WebService)
+	ws.Path("/").
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON)
+	ctlInterface.WebService(WS{ws})
+	m := make(map[string]ctlCtx)
+	for _, v := range ws.Routes() {
+		m[v.Method+" "+v.Path] = ctlCtx{
+			function: v.Function,
+			method:   v.Method,
+			path:     v.Path,
+		}
+	}
+	return m
+}
+
+func (m CtlFuncs) httpHandler(n string) http.Handler {
+	c := restful.NewContainer()
+	ws := new(restful.WebService)
+	ws.Route(ws.Method(m[n].method).Path(m[n].path).To(func(
+		request *restful.Request,
+		response *restful.Response,
+	) {
+		m[n].function(request, response)
+	}))
+	c.Add(ws)
+	return c
+}
+
+// NewTestServer returns a Test Server.
+func (m CtlFuncs) NewTestServer(method, path string) *httptest.Server {
+	return httptest.NewServer(m.httpHandler(method + " " + path))
 }
 
 // LogFilter logs
