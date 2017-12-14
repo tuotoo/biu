@@ -40,22 +40,25 @@ func newSwaggerService(
 
 func enrichSwaggerObject(info SwaggerInfo) func(swo *spec.Swagger) {
 	return func(swo *spec.Swagger) {
+		contact := &spec.ContactInfo{
+			Name:  info.ContactName,
+			Email: info.ContactEmail,
+			URL:   info.ContactURL,
+		}
+		license := &spec.License{
+			Name: info.LicenseName,
+			URL:  info.LicenseURL,
+		}
+		infoProps := spec.InfoProps{
+			Title:          info.Title,
+			Description:    info.Description,
+			TermsOfService: info.TermsOfService,
+			Contact:        contact,
+			License:        license,
+			Version:        info.Version,
+		}
 		swo.Info = &spec.Info{
-			InfoProps: spec.InfoProps{
-				Title:          info.Title,
-				Description:    info.Description,
-				TermsOfService: info.TermsOfService,
-				Contact: &spec.ContactInfo{
-					Name:  info.ContactName,
-					Email: info.ContactEmail,
-					URL:   info.ContactURL,
-				},
-				License: &spec.License{
-					Name: info.LicenseName,
-					URL:  info.LicenseURL,
-				},
-				Version: info.Version,
-			},
+			InfoProps: infoProps,
 		}
 		swo.Tags = swaggerTags
 	}
