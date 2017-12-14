@@ -29,9 +29,10 @@ func Handle(f func(ctl *Ctx)) restful.RouteFunction {
 	}
 }
 
-func ToStdHandler(k func(ctx *Ctx)) func(w http.ResponseWriter, r *http.Request) {
+// WrapHandler wraps a biu handler to http.HandlerFunc
+func WrapHandler(f func(ctx *Ctx)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		k(&Ctx{
+		f(&Ctx{
 			Request:  restful.NewRequest(r),
 			Response: restful.NewResponse(w),
 		})
