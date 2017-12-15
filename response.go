@@ -20,9 +20,9 @@ func init() {
 }
 
 // Handle transform a biu handler to a restful.RouteFunction.
-func Handle(f func(ctl *Ctx)) restful.RouteFunction {
+func Handle(f func(ctl Ctx)) restful.RouteFunction {
 	return func(request *restful.Request, response *restful.Response) {
-		f(&Ctx{
+		f(Ctx{
 			Request:  request,
 			Response: response,
 		})
