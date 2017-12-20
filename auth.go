@@ -66,6 +66,8 @@ func (ctx *Ctx) IsLogin() (userID string, err error) {
 	return ctx.CheckToken(tokenString)
 }
 
+// AuthFilter checks if request contains JWT,
+// and sets UserID in Attribute if exists,
 func AuthFilter(code int) restful.FilterFunction {
 	return Filter(func(ctx Ctx) {
 		userID, err := ctx.IsLogin()
