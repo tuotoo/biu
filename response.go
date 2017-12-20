@@ -20,7 +20,7 @@ func init() {
 }
 
 // Handle transform a biu handler to a restful.RouteFunction.
-func Handle(f func(ctl Ctx)) restful.RouteFunction {
+func Handle(f func(ctx Ctx)) restful.RouteFunction {
 	return func(request *restful.Request, response *restful.Response) {
 		f(Ctx{
 			Request:  request,
@@ -29,10 +29,22 @@ func Handle(f func(ctl Ctx)) restful.RouteFunction {
 	}
 }
 
+// Filter transform a biu handler to a restful.FilterFunction
+func Filter(f func(ctx Ctx)) restful.FilterFunction {
+	return func(request *restful.Request, response *restful.Response,
+		chain *restful.FilterChain) {
+		f(Ctx{
+			Request:     request,
+			Response:    response,
+			FilterChain: chain,
+		})
+	}
+}
+
 // WrapHandler wraps a biu handler to http.HandlerFunc
-func WrapHandler(f func(ctx *Ctx)) http.HandlerFunc {
+func WrapHandler(f func(ctx Ctx)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		f(&Ctx{
+		f(Ctx{
 			Request:  restful.NewRequest(r),
 			Response: restful.NewResponse(w),
 		})
@@ -50,6 +62,7 @@ func AddErrDesc(m map[int]string) {
 type Ctx struct {
 	*restful.Request
 	*restful.Response
+	*restful.FilterChain
 }
 
 // ResponseJSON is a convenience method
@@ -86,6 +99,15 @@ func (ctx *Ctx) ContainsError(err error, code int) bool {
 func (ctx *Ctx) ResponseStdErrCode(code int) {
 	msg := codeDesc.m[code]
 	ResponseError(ctx.Response, msg, code)
+}
+
+// UserID returns UserID stored in attribute.
+func (ctx *Ctx) UserID() string {
+	userID, ok := ctx.Attribute("UserID").(string)
+	if !ok {
+		return ""
+	}
+	return userID
 }
 
 // ResponseJSON is a convenience method

@@ -173,6 +173,7 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 }
 
 type ctlCtx struct {
+	filters  []restful.FilterFunction
 	function restful.RouteFunction
 	method   string
 	path     string
@@ -192,6 +193,7 @@ func GetCtlFuncs(ctlInterface CtlInterface) CtlFuncs {
 	m := make(map[string]ctlCtx)
 	for _, v := range ws.Routes() {
 		m[v.Method+" "+v.Path] = ctlCtx{
+			filters:  v.Filters,
 			function: v.Function,
 			method:   v.Method,
 			path:     v.Path,
@@ -203,6 +205,9 @@ func GetCtlFuncs(ctlInterface CtlInterface) CtlFuncs {
 func (m CtlFuncs) httpHandler(n string) http.Handler {
 	c := restful.NewContainer()
 	ws := new(restful.WebService)
+	for _, f := range m[n].filters {
+		ws = ws.Filter(f)
+	}
 	ws.Route(ws.Method(m[n].method).Path(m[n].path).To(func(
 		request *restful.Request,
 		response *restful.Response,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/dgrijalva/jwt-go/request"
+	"github.com/emicklei/go-restful"
 )
 
 var jwtInfo struct {
@@ -63,4 +64,15 @@ func (ctx *Ctx) IsLogin() (userID string, err error) {
 		return "", err
 	}
 	return ctx.CheckToken(tokenString)
+}
+
+func AuthFilter(code int) restful.FilterFunction {
+	return Filter(func(ctx Ctx) {
+		userID, err := ctx.IsLogin()
+		if ctx.ContainsError(err, code) {
+			return
+		}
+		ctx.SetAttribute("UserID", userID)
+		ctx.ProcessFilter(ctx.Request, ctx.Response)
+	})
 }
