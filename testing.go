@@ -2,6 +2,8 @@ package biu
 
 import (
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/json-iterator/go"
@@ -29,33 +31,15 @@ func NewCT(ctl CtlInterface) *CT {
 
 // Handler creates a request for testing handler.
 func (ct CT) Handler(method, path string,
-	option *grequests.RequestOptions) (*grequests.Response, error) {
-	return reqPathHandler(ct.ctlFuncs, method, path, path, option)
+	option *grequests.RequestOptions, v ...string) (*grequests.Response, error) {
+	return reqHandler(ct.ctlFuncs, method, path, option, v...)
 }
 
 // AssertHandler requests a handler with error assert
 // and returns a CommonRespRawData.
 func (ct CT) AssertHandler(t *testing.T, method, path string,
-	option *grequests.RequestOptions) *CommonRespRawData {
-	resp, err := reqPathHandler(ct.ctlFuncs, method, path, path, option)
-	assert.Nil(t, err)
-	crt := &CommonRespRawData{}
-	err = resp.JSON(crt)
-	assert.Nil(t, err)
-	return crt
-}
-
-// PathHandler creates a request for testing handler with path parameter.
-func (ct CT) PathHandler(method, path string, reqPath string,
-	option *grequests.RequestOptions) (*grequests.Response, error) {
-	return reqPathHandler(ct.ctlFuncs, method, path, reqPath, option)
-}
-
-// AssertPathHandler requests a path handler with error assert
-// and returns a CommonRespRawData.
-func (ct CT) AssertPathHandler(t *testing.T, method, path string, reqPath string,
-	option *grequests.RequestOptions) *CommonRespRawData {
-	resp, err := reqPathHandler(ct.ctlFuncs, method, path, reqPath, option)
+	option *grequests.RequestOptions, v ...string) *CommonRespRawData {
+	resp, err := reqHandler(ct.ctlFuncs, method, path, option, v...)
 	assert.Nil(t, err)
 	crt := &CommonRespRawData{}
 	err = resp.JSON(crt)
@@ -68,9 +52,25 @@ func AssertJSON(t *testing.T, data []byte, v interface{}) {
 	assert.Nil(t, err)
 }
 
-func reqPathHandler(ctlFuncs CtlFuncs, method, path, reqPath string,
-	option *grequests.RequestOptions) (*grequests.Response, error) {
+func reqHandler(ctlFuncs CtlFuncs, method, path string,
+	option *grequests.RequestOptions, v ...string) (*grequests.Response, error) {
 	testServer := ctlFuncs.NewTestServer(method, path)
 	defer testServer.Close()
-	return grequests.Req(method, testServer.URL+reqPath, option)
+	i := 0
+	for {
+		li := strings.Index(path, "{")
+		if li < 0 {
+			break
+		}
+		ri := strings.Index(path, "}")
+		if ri < 0 {
+			break
+		}
+		if len(v) < i+1 {
+			return nil, errors.New("not enough arguments")
+		}
+		path = path[:li] + v[i] + path[ri+1:]
+		i++
+	}
+	return grequests.Req(method, testServer.URL+path, option)
 }
