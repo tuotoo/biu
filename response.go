@@ -70,13 +70,13 @@ type Ctx struct {
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
 func (ctx *Ctx) ResponseJSON(v interface{}) {
-	commonResponse(ctx.Response, &CommonResp{}, 0, "", v)
+	commonResponse(ctx.Response, CommonResp{Data: v})
 }
 
 // ResponseError is a convenience method to response an error code and message.
 // It uses jsoniter for marshalling the value.
 func (ctx *Ctx) ResponseError(msg string, code int) {
-	commonResponse(ctx.Response, &CommonResp{}, code, msg, nil)
+	commonResponse(ctx.Response, CommonResp{Code: code, Message: msg})
 }
 
 // ContainsError is a convenience method to check error is nil.
@@ -121,13 +121,13 @@ func (ctx *Ctx) UserID() string {
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
 func ResponseJSON(w http.ResponseWriter, v interface{}) {
-	commonResponse(w, &CommonResp{}, 0, "", v)
+	commonResponse(w, CommonResp{Data: v})
 }
 
 // ResponseError is a convenience method to response an error code and message.
 // It uses jsoniter for marshalling the value.
 func ResponseError(w http.ResponseWriter, msg string, code int) {
-	commonResponse(w, &CommonResp{}, code, msg, nil)
+	commonResponse(w, CommonResp{Code: code, Message: msg})
 }
 
 // ContainsError is a convenience method to check error is nil.
@@ -159,9 +159,7 @@ func CheckError(err error, log *LogEvt) bool {
 	return false
 }
 
-func commonResponse(w http.ResponseWriter, resp RespInterface,
-	code int, message string, data interface{}) {
-	resp.Response(code, message, data)
+func commonResponse(w http.ResponseWriter, resp CommonResp) {
 	if err := writeJSON(w, http.StatusOK, resp); err != nil {
 		Warn("json encode", Log().Err(err))
 	}
