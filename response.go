@@ -1,6 +1,7 @@
 package biu
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -82,8 +83,11 @@ func (ctx *Ctx) ResponseError(msg string, code int) {
 // If error is nil, it will return false,
 // else it will log the error, make a CommonResp response and return true.
 // if code is 0, it will use err.Error() as CommonResp.message.
-func (ctx *Ctx) ContainsError(err error, code int) bool {
+func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	msg := codeDesc.m[code]
+	if len(v) > 0 {
+		msg = fmt.Sprintf(msg, v...)
+	}
 	if CheckError(err, Log().Int("code", code).Str("msg", msg)) {
 		return false
 	}
@@ -96,8 +100,11 @@ func (ctx *Ctx) ContainsError(err error, code int) bool {
 
 // ResponseStdErrCode is a convenience method response a code
 // with msg in Code Desc.
-func (ctx *Ctx) ResponseStdErrCode(code int) {
+func (ctx *Ctx) ResponseStdErrCode(code int, v ...interface{}) {
 	msg := codeDesc.m[code]
+	if len(v) > 0 {
+		msg = fmt.Sprintf(msg, v...)
+	}
 	ResponseError(ctx.Response, msg, code)
 }
 
