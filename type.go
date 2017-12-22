@@ -23,11 +23,23 @@ type CtlInterface interface {
 	WebService(WS)
 }
 
+// RespInterface puts code, message and data into a struct.
+type RespInterface interface {
+	Response(code int, message string, data interface{})
+}
+
 // CommonResp with code, message and data
 type CommonResp struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
+}
+
+// Response implements RespInterface.
+func (c *CommonResp) Response(code int, message string, data interface{}) {
+	c.Code = code
+	c.Message = message
+	c.Data = data
 }
 
 // SwaggerInfo contains configuration of swagger documents.
