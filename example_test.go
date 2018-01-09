@@ -19,6 +19,10 @@ func (ctl Foo) WebService(ws biu.WS) {
 			100: "num not Number",
 		},
 	})
+
+	// add more routes as you like:
+	// ws.Route(ws.POST("/foo"),nil)
+	// ...
 }
 
 // Bar is the response of getBar
@@ -46,6 +50,7 @@ func Example() {
 		},
 	)
 	// Note: you should add swagger service after adding services.
+	// swagger document will be available at http://localhost:8080/v1/swagger
 	swaggerService := biu.NewSwaggerService(biu.SwaggerInfo{
 		Title:        "Foo Bar",
 		Description:  "Foo Bar Service",
