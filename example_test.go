@@ -13,7 +13,7 @@ type Foo struct{}
 // WebService implements CtlInterface
 func (ctl Foo) WebService(ws biu.WS) {
 	ws.Route(ws.GET("/").To(biu.Handle(ctl.getBar)).
-		Param(ws.QueryParameter("num", "number").DataType("int")).
+		Param(ws.QueryParameter("num", "number").DataType("integer")).
 		Doc("Get Bar").DefaultReturns("Bar", Bar{}), &biu.RouteOpt{
 		Errors: map[int]string{
 			100: "num not Number",
