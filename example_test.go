@@ -56,5 +56,5 @@ func Example() {
 		RoutePrefix:  "/v1",
 	})
 	restful.Add(swaggerService)
-	biu.Run(":8010", nil)
+	biu.Run(":8080", nil)
 }
