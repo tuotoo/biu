@@ -66,12 +66,6 @@ type Ctx struct {
 	*restful.FilterChain
 }
 
-var Resp RespInterface
-
-type RespInterface interface {
-	Response(w http.ResponseWriter, Code int, Message string, Data interface{})
-}
-
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
@@ -165,7 +159,10 @@ func CheckError(err error, log *LogEvt) bool {
 	return false
 }
 
-var CommonResponse = func(w http.ResponseWriter, code int, message string, data interface{}) {
+// CommonResponse is a response func.
+// just replace it if you'd like to custom response.
+var CommonResponse = func(w http.ResponseWriter,
+	code int, message string, data interface{}) {
 	if err := writeJSON(w, http.StatusOK, CommonResp{
 		Code:    code,
 		Message: message,

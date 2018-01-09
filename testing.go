@@ -47,6 +47,7 @@ func (ct CT) AssertHandler(t *testing.T, method, path string,
 	return crt
 }
 
+// AssertJSON unmarshal a json data, and assert the error.
 func AssertJSON(t *testing.T, data []byte, v interface{}) {
 	err := jsoniter.Unmarshal(data, v)
 	assert.Nil(t, err)
