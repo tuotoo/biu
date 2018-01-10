@@ -17,8 +17,8 @@ var jwtInfo struct {
 
 // SetJWTInfo sets the options of JWT.
 // The time unit of timeout is minute.
-func SetJWTInfo(timeout int, secret string) {
-	jwtInfo.timeout = time.Minute * time.Duration(timeout)
+func SetJWTInfo(timeout time.Duration, secret string) {
+	jwtInfo.timeout = timeout
 	jwtInfo.secret = []byte(secret)
 }
 
