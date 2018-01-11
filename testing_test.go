@@ -8,8 +8,8 @@ import (
 	"github.com/tuotoo/biu"
 )
 
+// Testing Foo controller in package example.
 var fooCT = biu.NewCT(Foo{})
-
 var _ func(t *testing.T)
 
 func ExampleNewCT() {
