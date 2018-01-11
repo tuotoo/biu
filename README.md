@@ -2,8 +2,10 @@
 
 a set of toolkits for [go-restful](https://github.com/emicklei/go-restful).
 
+[![GitHub release](http://img.shields.io/github/release/tuotoo/biu.svg)](https://github.com/tuotoo/biu/releases)
 [![GoDoc](https://godoc.org/github.com/tuotoo/biu?status.svg)](https://godoc.org/github.com/tuotoo/biu)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tuotoo/biu)](https://goreportcard.com/report/github.com/tuotoo/biu)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
 ## Installation
 
