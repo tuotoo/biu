@@ -10,24 +10,48 @@ import (
 	"github.com/emicklei/go-restful"
 )
 
-var jwtInfo struct {
-	timeout time.Duration
-	secret  []byte
+var globalOptions = struct {
+	jwtTimeout time.Duration
+	jwtSecret  []byte
+}{
+	jwtTimeout: time.Hour,
+	jwtSecret:  []byte("secret"),
 }
 
-// SetJWTInfo sets the options of JWT.
-func SetJWTInfo(timeout time.Duration, secret string) {
-	jwtInfo.timeout = timeout
-	jwtInfo.secret = []byte(secret)
+// Setter is a setter for setting global options.
+type Setter struct{}
+
+// JWTTimeout sets timeout for JWT.
+func JWTTimeout(timeout time.Duration) Setter {
+	globalOptions.jwtTimeout = timeout
+	return Setter{}
+}
+
+// JWTTimeout sets timeout for JWT.
+func (Setter) JWTTimeout(timeout time.Duration) Setter {
+	return JWTTimeout(timeout)
+}
+
+// JWTSecret sets secret for JWT.
+func JWTSecret(secret string) Setter {
+	globalOptions.jwtSecret = []byte(secret)
+	return Setter{}
+}
+
+// JWTSecret sets secret for JWT.
+func (Setter) JWTSecret(secret string) Setter {
+	return JWTSecret(secret)
 }
 
 // Sign returns a signed jwt string.
 func Sign(userID string) (token string, err error) {
+	now := time.Now()
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": userID,
-		"exp": time.Now().Add(jwtInfo.timeout).Unix(),
+		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
+		"iat": now.Unix(),
 	})
-	return jwtToken.SignedString(jwtInfo.secret)
+	return jwtToken.SignedString(globalOptions.jwtSecret)
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
@@ -39,7 +63,7 @@ func (ctx *Ctx) CheckToken(token string) (userID string, err error) {
 			Info("parse signing method", Log().Err(signingErr))
 			return nil, signingErr
 		}
-		return jwtInfo.secret, nil
+		return globalOptions.jwtSecret, nil
 	})
 	if err != nil {
 		Info("parse token", Log().Err(err))

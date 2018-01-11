@@ -10,7 +10,8 @@ import (
 )
 
 func ExampleSign() {
-	biu.SetJWTInfo(2*time.Second, "hello world")
+	biu.JWTTimeout(2 * time.Second).
+		JWTSecret("hello world")
 	token, _ := biu.Sign("user")
 	ctx := &biu.Ctx{
 		Request: &restful.Request{
