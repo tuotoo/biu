@@ -10,7 +10,9 @@ import (
 )
 
 func ExampleSign() {
-	biu.SetJWTInfo(2*time.Second, "hello world")
+	biu.JWTTimeout(4 * time.Second).
+		JWTSecret("hello world").
+		JWTRefreshTimeout(5 * time.Second)
 	token, _ := biu.Sign("user")
 	ctx := &biu.Ctx{
 		Request: &restful.Request{
@@ -21,16 +23,40 @@ func ExampleSign() {
 			},
 		},
 	}
-	u1, e1 := ctx.IsLogin()
-	fmt.Println(u1, e1 == nil)
-	u2, e2 := ctx.CheckToken(token)
-	fmt.Println(u2, e2 == nil)
+	u1, err := ctx.IsLogin()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(u1)
+	u2, err := biu.CheckToken(token)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(u2)
+	time.Sleep(time.Second * 2)
+	newToken, err := biu.RefreshToken(token)
+	if err != nil {
+		panic(err)
+	}
+	_, err = biu.CheckToken(newToken)
+	if err != nil {
+		panic(err)
+	}
 
 	time.Sleep(time.Second * 3)
-	u3, e3 := ctx.IsLogin()
-	fmt.Println(u3, e3 != nil)
-	u4, e4 := ctx.CheckToken(token)
-	fmt.Println(u4, e4 != nil)
+	// token is expired, newToken is still valid
+	_, err = ctx.IsLogin()
+	fmt.Println(err != nil)
+	_, err = biu.CheckToken(token)
+	fmt.Println(err != nil)
+	_, err = biu.CheckToken(newToken)
+	if err != nil {
+		panic(err)
+	}
+	time.Sleep(time.Second)
+	// cant refresh token if refresh timeout is reached
+	_, err = biu.RefreshToken(newToken)
+	fmt.Println(err != nil)
 
 	ctx2 := &biu.Ctx{
 		Request: &restful.Request{
@@ -41,12 +67,14 @@ func ExampleSign() {
 			},
 		},
 	}
-	u5, e5 := ctx2.IsLogin()
-	fmt.Println(u5, e5 != nil)
+	_, err = ctx2.IsLogin()
+	fmt.Println(err != nil)
 	// Output:
-	// user true
-	// user true
-	//  true
-	//  true
-	//  true
+	// user
+	// user
+	// true
+	// true
+	// true
+	// true
+
 }
