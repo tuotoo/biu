@@ -11,11 +11,13 @@ import (
 )
 
 var globalOptions = struct {
-	jwtTimeout time.Duration
-	jwtSecret  []byte
+	jwtTimeout        time.Duration
+	jwtSecret         []byte
+	jwtRefreshTimeout time.Duration
 }{
-	jwtTimeout: time.Hour,
-	jwtSecret:  []byte("secret"),
+	jwtTimeout:        time.Minute * 5,
+	jwtSecret:         []byte("secret"),
+	jwtRefreshTimeout: time.Hour * 24 * 7,
 }
 
 // Setter is a setter for setting global options.
@@ -43,6 +45,15 @@ func (Setter) JWTSecret(secret string) Setter {
 	return JWTSecret(secret)
 }
 
+func JWTRefreshTimeout(timeout time.Duration) Setter {
+	globalOptions.jwtRefreshTimeout = timeout
+	return Setter{}
+}
+
+func (Setter) JWTRefreshTimeout(timeout time.Duration) Setter {
+	return JWTRefreshTimeout(timeout)
+}
+
 // Sign returns a signed jwt string.
 func Sign(userID string) (token string, err error) {
 	now := time.Now()
@@ -54,9 +65,8 @@ func Sign(userID string) (token string, err error) {
 	return jwtToken.SignedString(globalOptions.jwtSecret)
 }
 
-// CheckToken accept a jwt token and returns the uid in token.
-func CheckToken(token string) (userID string, err error) {
-	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+func ParseToken(token string) (*jwt.Token, error) {
+	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
 			signingErr := fmt.Errorf("unexpected signing method: %v",
 				token.Header["alg"])
@@ -65,6 +75,38 @@ func CheckToken(token string) (userID string, err error) {
 		}
 		return globalOptions.jwtSecret, nil
 	})
+}
+
+func RefreshToken(token string) (newToken string, err error) {
+	t, err := ParseToken(token)
+	if err != nil {
+		Info("parse token", Log().Err(err))
+		return "", err
+	}
+
+	if claims, isMapClaims := t.Claims.(jwt.MapClaims); isMapClaims && t.Valid {
+		if iatF64, isF64 := claims["iat"].(float64); isF64 {
+			now := time.Now()
+			iat := int64(iatF64)
+			if iat < now.Add(-globalOptions.jwtRefreshTimeout).Unix() {
+				return "", errors.New("refresh is expired")
+			}
+			if uid, isString := claims["uid"].(string); isString {
+				jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+					"uid": uid,
+					"exp": now.Add(globalOptions.jwtTimeout).Unix(),
+					"iat": iat,
+				})
+				return jwtToken.SignedString(globalOptions.jwtSecret)
+			}
+		}
+	}
+	return "", errors.New("unexpected token")
+}
+
+// CheckToken accept a jwt token and returns the uid in token.
+func CheckToken(token string) (userID string, err error) {
+	t, err := ParseToken(token)
 	if err != nil {
 		Info("parse token", Log().Err(err))
 		return "", err
