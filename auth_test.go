@@ -23,15 +23,21 @@ func ExampleSign() {
 		},
 	}
 	u1, e1 := ctx.IsLogin()
-	fmt.Println(u1, e1 == nil)
+	if e1 != nil {
+		panic(e1)
+	}
+	fmt.Println(u1)
 	u2, e2 := ctx.CheckToken(token)
-	fmt.Println(u2, e2 == nil)
+	if e2 != nil {
+		panic(e2)
+	}
+	fmt.Println(u2)
 
 	time.Sleep(time.Second * 3)
-	u3, e3 := ctx.IsLogin()
-	fmt.Println(u3, e3 != nil)
-	u4, e4 := ctx.CheckToken(token)
-	fmt.Println(u4, e4 != nil)
+	_, e3 := ctx.IsLogin()
+	fmt.Println(e3 != nil)
+	_, e4 := ctx.CheckToken(token)
+	fmt.Println(e4 != nil)
 
 	ctx2 := &biu.Ctx{
 		Request: &restful.Request{
@@ -42,12 +48,12 @@ func ExampleSign() {
 			},
 		},
 	}
-	u5, e5 := ctx2.IsLogin()
-	fmt.Println(u5, e5 != nil)
+	_, e5 := ctx2.IsLogin()
+	fmt.Println(e5 != nil)
 	// Output:
-	// user true
-	// user true
-	//  true
-	//  true
-	//  true
+	// user
+	// user
+	// true
+	// true
+	// true
 }
