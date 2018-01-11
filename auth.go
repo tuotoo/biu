@@ -55,7 +55,7 @@ func Sign(userID string) (token string, err error) {
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
-func (ctx *Ctx) CheckToken(token string) (userID string, err error) {
+func CheckToken(token string) (userID string, err error) {
 	t, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
 			signingErr := fmt.Errorf("unexpected signing method: %v",
@@ -86,7 +86,7 @@ func (ctx *Ctx) IsLogin() (userID string, err error) {
 		Info("no auth header", Log().Err(err))
 		return "", err
 	}
-	return ctx.CheckToken(tokenString)
+	return CheckToken(tokenString)
 }
 
 // AuthFilter checks if request contains JWT,

@@ -27,7 +27,7 @@ func ExampleSign() {
 		panic(e1)
 	}
 	fmt.Println(u1)
-	u2, e2 := ctx.CheckToken(token)
+	u2, e2 := biu.CheckToken(token)
 	if e2 != nil {
 		panic(e2)
 	}
@@ -36,7 +36,7 @@ func ExampleSign() {
 	time.Sleep(time.Second * 3)
 	_, e3 := ctx.IsLogin()
 	fmt.Println(e3 != nil)
-	_, e4 := ctx.CheckToken(token)
+	_, e4 := biu.CheckToken(token)
 	fmt.Println(e4 != nil)
 
 	ctx2 := &biu.Ctx{
