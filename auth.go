@@ -45,11 +45,13 @@ func (Setter) JWTSecret(secret string) Setter {
 	return JWTSecret(secret)
 }
 
+// JWTRefreshTimeout sets refresh timeout for JWT.
 func JWTRefreshTimeout(timeout time.Duration) Setter {
 	globalOptions.jwtRefreshTimeout = timeout
 	return Setter{}
 }
 
+// JWTRefreshTimeout sets refresh timeout for JWT.
 func (Setter) JWTRefreshTimeout(timeout time.Duration) Setter {
 	return JWTRefreshTimeout(timeout)
 }
@@ -65,6 +67,7 @@ func Sign(userID string) (token string, err error) {
 	return jwtToken.SignedString(globalOptions.jwtSecret)
 }
 
+// ParseToken parse a token string.
 func ParseToken(token string) (*jwt.Token, error) {
 	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
@@ -77,6 +80,8 @@ func ParseToken(token string) (*jwt.Token, error) {
 	})
 }
 
+// RefreshToken accepts a valid token and
+// returns a new token with new expire time.
 func RefreshToken(token string) (newToken string, err error) {
 	t, err := ParseToken(token)
 	if err != nil {
