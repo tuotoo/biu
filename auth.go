@@ -88,25 +88,29 @@ func RefreshToken(token string) (newToken string, err error) {
 		Info("parse token", Log().Err(err))
 		return "", err
 	}
-
-	if claims, isMapClaims := t.Claims.(jwt.MapClaims); isMapClaims && t.Valid {
-		if iatF64, isF64 := claims["iat"].(float64); isF64 {
-			now := time.Now()
-			iat := int64(iatF64)
-			if iat < now.Add(-globalOptions.jwtRefreshTimeout).Unix() {
-				return "", errors.New("refresh is expired")
-			}
-			if uid, isString := claims["uid"].(string); isString {
-				jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-					"uid": uid,
-					"exp": now.Add(globalOptions.jwtTimeout).Unix(),
-					"iat": iat,
-				})
-				return jwtToken.SignedString(globalOptions.jwtSecret)
-			}
-		}
+	claims, isMapClaims := t.Claims.(jwt.MapClaims)
+	if !isMapClaims || !t.Valid {
+		return "", errors.New("unexpected token")
 	}
-	return "", errors.New("unexpected token")
+	iatF64, ok := claims["iat"].(float64)
+	if !ok {
+		return "", errors.New("not available iat")
+	}
+	now := time.Now()
+	iat := int64(iatF64)
+	if iat < now.Add(-globalOptions.jwtRefreshTimeout).Unix() {
+		return "", errors.New("refresh is expired")
+	}
+	uid, ok := claims["uid"].(string)
+	if !ok {
+		return "", errors.New("not available uid")
+	}
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid": uid,
+		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
+		"iat": iat,
+	})
+	return jwtToken.SignedString(globalOptions.jwtSecret)
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
