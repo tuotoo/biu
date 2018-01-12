@@ -88,8 +88,8 @@ func RefreshToken(token string) (newToken string, err error) {
 		Info("parse token", Log().Err(err))
 		return "", err
 	}
-	claims, isMapClaims := t.Claims.(jwt.MapClaims)
-	if !isMapClaims || !t.Valid {
+	claims, ok := t.Claims.(jwt.MapClaims)
+	if !ok || !t.Valid {
 		return "", errors.New("unexpected token")
 	}
 	iatF64, ok := claims["iat"].(float64)
@@ -120,13 +120,16 @@ func CheckToken(token string) (userID string, err error) {
 		Info("parse token", Log().Err(err))
 		return "", err
 	}
+	claims, ok := t.Claims.(jwt.MapClaims)
+	if !ok || !t.Valid {
+		return "", errors.New("unexpected token")
 
-	if claims, isMapClaims := t.Claims.(jwt.MapClaims); isMapClaims && t.Valid {
-		if uid, isString := claims["uid"].(string); isString {
-			return uid, nil
-		}
 	}
-	return "", errors.New("unexpected token")
+	uid, ok := claims["uid"].(string)
+	if !ok {
+		return "", errors.New("not available uid")
+	}
+	return uid, nil
 }
 
 // IsLogin gets JWT token in request by OAuth2Extractor,
