@@ -155,7 +155,10 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 		return []string{}, err
 	}
 	if ctx.Request.Request.PostForm == nil {
-		ctx.Request.Request.ParseMultipartForm(defaultMaxMemory)
+		err = ctx.Request.Request.ParseMultipartForm(defaultMaxMemory)
+		if err != nil {
+			return []string{}, err
+		}
 	}
 	if vs := ctx.Request.Request.PostForm[name]; len(vs) > 0 {
 		return vs, nil
