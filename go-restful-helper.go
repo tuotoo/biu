@@ -61,8 +61,9 @@ func Run(addr string, cfg *RunConfig) {
 
 // RouteOpt contains some options of route.
 type RouteOpt struct {
-	Auth   bool
-	Errors map[int]string
+	Auth            bool
+	NeedPermissions []string
+	Errors          map[int]string
 }
 
 // Route creates a new Route using the RouteBuilder
@@ -76,6 +77,10 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 		if opt.Auth {
 			builder = builder.Param(ws.HeaderParameter("Authorization", "JWT Token").
 				DefaultValue("bearer ").DataType("string").Required(true))
+		}
+		if len(opt.NeedPermissions) != 0 {
+			builder = builder.Notes("Need Permission: " +
+				strings.Join(opt.NeedPermissions, " "))
 		}
 	}
 	ws.WebService.Route(builder)
