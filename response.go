@@ -2,7 +2,9 @@ package biu
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/emicklei/go-restful"
@@ -58,6 +60,10 @@ func AddErrDesc(m map[int]string) {
 		codeDesc.m[k] = v
 	}
 }
+
+const (
+	defaultMaxMemory = 32 << 20 // 32 MB
+)
 
 // Ctx wrap *restful.Request and *restful.Response in one struct.
 type Ctx struct {
@@ -115,6 +121,49 @@ func (ctx *Ctx) UserID() string {
 		return ""
 	}
 	return userID
+}
+
+// IP returns the IP address of request.
+func (ctx *Ctx) IP() string {
+	ipArr := ctx.Proxy()
+	if len(ipArr) > 0 && ipArr[0] != "" {
+		ip, _, err := net.SplitHostPort(ipArr[0])
+		if err != nil {
+			ip = ipArr[0]
+		}
+		return ip
+	}
+	ip, _, err := net.SplitHostPort(ctx.Request.Request.RemoteAddr)
+	if err != nil {
+		return ctx.Request.Request.RemoteAddr
+	}
+	return ip
+}
+
+// Proxy returns the proxy endpoints behind a request.
+func (ctx *Ctx) Proxy() []string {
+	if ipArr := ctx.HeaderParameter("X-Forwarded-For"); ipArr != "" {
+		return strings.Split(ipArr, ",")
+	}
+	return []string{}
+}
+
+// BodyParameterValues returns the array of parameter in a POST form body.
+func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
+	err := ctx.Request.Request.ParseForm()
+	if err != nil {
+		return []string{}, err
+	}
+	if ctx.Request.Request.PostForm == nil {
+		err = ctx.Request.Request.ParseMultipartForm(defaultMaxMemory)
+		if err != nil {
+			return []string{}, err
+		}
+	}
+	if vs := ctx.Request.Request.PostForm[name]; len(vs) > 0 {
+		return vs, nil
+	}
+	return []string{}, nil
 }
 
 // ResponseJSON is a convenience method
