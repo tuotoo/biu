@@ -52,14 +52,14 @@ func Error(msg string, evt *LogEvt) {
 	logger.Error().Dict("fields", evt).Msg(msg)
 }
 
-// Fatal starts a new message with fatal level. The os.Exit(1) function
-// is called by the Msg method.
+// Fatal starts a new message with fatal level.
+// The os.Exit(1) function is called by the Msg method.
 func Fatal(msg string, evt *LogEvt) {
 	logger.Fatal().Dict("fields", evt).Msg(msg)
 }
 
-// Panic starts a new message with panic level. The message is also sent
-// to the panic function.
+// Panic starts a new message with panic level.
+// The message is also sent to the panic function.
 func Panic(msg string, evt *LogEvt) {
 	logger.Panic().Dict("fields", evt).Msg(msg)
 }
