@@ -2,12 +2,12 @@ package biu
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/swagger-go"
-	"strings"
 )
 
 // NewSwaggerService creates a swagger webservice in /swagger
@@ -111,4 +111,3 @@ func getPathOption(swo *spec.Swagger, route restful.Route) *spec.Operation {
 	}
 	return pOption
 }
-
