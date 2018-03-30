@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/signal"
-	"sort"
+	"reflect"
 	"strings"
 	"syscall"
 
@@ -59,8 +59,15 @@ func Run(addr string, cfg *RunConfig) {
 	run(addr, nil, cfg)
 }
 
+var (
+	routeIDMap  = make(map[string]string)
+	routeErrMap = make(map[string]map[int]string)
+)
+
 // RouteOpt contains some options of route.
 type RouteOpt struct {
+	ID              string
+	To              func(ctx Ctx)
 	Auth            bool
 	NeedPermissions []string
 	Errors          map[int]string
@@ -70,8 +77,28 @@ type RouteOpt struct {
 // and add to the ordered list of Routes.
 func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 	if opt != nil {
+		if opt.To != nil {
+			builder = builder.To(Handle(opt.To))
+			if opt.ID != "" {
+				builder = builder.Operation(opt.ID)
+			} else {
+				builder = builder.Operation(nameOfFunction(opt.To))
+			}
+		}
+		elm := reflect.ValueOf(builder).Elem()
+		p1 := elm.FieldByName("rootPath").String()
+		p2 := elm.FieldByName("currentPath").String()
+		path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
+		method := elm.FieldByName("httpMethod").String()
+		mapKey := path + " " + method
+		if opt.ID != "" {
+			routeIDMap[mapKey] = opt.ID
+		}
+		if _, ok := routeErrMap[mapKey]; !ok {
+			routeErrMap[mapKey] = make(map[int]string)
+		}
 		for k, v := range opt.Errors {
-			codeDesc.m[k] = v
+			routeErrMap[mapKey][k] = v
 			builder = builder.Returns(k, v, nil)
 		}
 		if opt.Auth {
@@ -130,23 +157,6 @@ func addService(
 }
 
 func run(addr string, handler http.Handler, cfg *RunConfig) {
-	// log errors
-	lenCodeDesc := len(codeDesc.m)
-	if lenCodeDesc > 0 {
-		codeArr := make([]int, lenCodeDesc)
-		i := 0
-		for k := range codeDesc.m {
-			codeArr[i] = k
-			i++
-		}
-		sort.Ints(codeArr)
-		Info(
-			"errors", Log().
-				Int("from", codeArr[0]).
-				Int("to", codeArr[lenCodeDesc-1]),
-		)
-	}
-
 	address := addr
 	hostAndPort := strings.Split(addr, ":")
 	if len(hostAndPort) == 0 || (len(hostAndPort) > 1 && hostAndPort[1] == "") {
