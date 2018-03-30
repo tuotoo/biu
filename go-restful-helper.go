@@ -75,8 +75,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 			builder = builder.Returns(k, v, nil)
 		}
 		if opt.Auth {
-			builder = builder.Param(ws.HeaderParameter("Authorization", "JWT Token").
-				DefaultValue("bearer ").DataType("string").Required(true))
+			builder = builder.Metadata("jwt", true)
 		}
 		if len(opt.NeedPermissions) != 0 {
 			builder = builder.Notes("Need Permission: " +
@@ -124,9 +123,7 @@ func addService(
 			Info("router", Log().
 				Str("path", r.Path).
 				Str("method", r.Method))
-			routes[ri].Metadata = map[string]interface{}{
-				restfulspec.KeyOpenAPITags: []string{v.NameSpace},
-			}
+			routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
 		}
 
 	}
