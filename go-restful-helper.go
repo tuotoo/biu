@@ -147,9 +147,12 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			Info("router", Log().
+			Info("routers", Log().
 				Str("path", r.Path).
 				Str("method", r.Method))
+			if routes[ri].Metadata == nil {
+				routes[ri].Metadata = make(map[string]interface{})
+			}
 			routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
 		}
 
