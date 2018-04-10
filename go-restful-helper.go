@@ -9,9 +9,11 @@ import (
 	"reflect"
 	"strings"
 	"syscall"
+	"testing"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
+	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/json-iterator/go"
 	"github.com/rs/zerolog"
@@ -187,55 +189,26 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 	Info("server is down gracefully", Log())
 }
 
-type ctlCtx struct {
-	filters  []restful.FilterFunction
-	function restful.RouteFunction
-	method   string
-	path     string
-}
-
-// CtlFuncs is a map contains all handler of a controller.
-// the key of CtlFuncs is "Method Path" of handler.
-type CtlFuncs map[string]ctlCtx
-
-// GetCtlFuncs returns the handler map of a controller.
-func GetCtlFuncs(ctlInterface CtlInterface) CtlFuncs {
-	ws := new(restful.WebService)
-	ws.Path("/").
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON)
-	ctlInterface.WebService(WS{ws})
-	m := make(map[string]ctlCtx)
-	for _, v := range ws.Routes() {
-		m[v.Method+" "+v.Path] = ctlCtx{
-			filters:  v.Filters,
-			function: v.Function,
-			method:   v.Method,
-			path:     v.Path,
-		}
-	}
-	return m
-}
-
-func (m CtlFuncs) httpHandler(n string) http.Handler {
-	c := restful.NewContainer()
-	ws := new(restful.WebService)
-	for _, f := range m[n].filters {
-		ws = ws.Filter(f)
-	}
-	ws.Route(ws.Method(m[n].method).Path(m[n].path).To(func(
-		request *restful.Request,
-		response *restful.Response,
-	) {
-		m[n].function(request, response)
-	}))
-	c.Add(ws)
-	return c
+type TestServer struct {
+	*httptest.Server
 }
 
 // NewTestServer returns a Test Server.
-func (m CtlFuncs) NewTestServer(method, path string) *httptest.Server {
-	return httptest.NewServer(m.httpHandler(method + " " + path))
+func (c *Container) NewTestServer() *TestServer {
+	return &TestServer{
+		Server: httptest.NewServer(c),
+	}
+}
+
+// NewTestServer returns a Test Server.
+func NewTestServer() *TestServer {
+	return &TestServer{
+		Server: httptest.NewServer(restful.DefaultContainer),
+	}
+}
+
+func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
+	return httpexpect.New(t, s.URL)
 }
 
 // LogFilter logs
