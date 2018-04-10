@@ -6,12 +6,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/signal"
-	"sort"
+	"reflect"
 	"strings"
 	"syscall"
+	"testing"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
+	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/json-iterator/go"
 	"github.com/rs/zerolog"
@@ -59,8 +61,15 @@ func Run(addr string, cfg *RunConfig) {
 	run(addr, nil, cfg)
 }
 
+var (
+	routeIDMap  = make(map[string]string)
+	routeErrMap = make(map[string]map[int]string)
+)
+
 // RouteOpt contains some options of route.
 type RouteOpt struct {
+	ID              string
+	To              func(ctx Ctx)
 	Auth            bool
 	NeedPermissions []string
 	Errors          map[int]string
@@ -70,13 +79,32 @@ type RouteOpt struct {
 // and add to the ordered list of Routes.
 func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 	if opt != nil {
+		if opt.To != nil {
+			builder = builder.To(Handle(opt.To))
+			if opt.ID != "" {
+				builder = builder.Operation(opt.ID)
+			} else {
+				builder = builder.Operation(nameOfFunction(opt.To))
+			}
+		}
+		elm := reflect.ValueOf(builder).Elem()
+		p1 := elm.FieldByName("rootPath").String()
+		p2 := elm.FieldByName("currentPath").String()
+		path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
+		method := elm.FieldByName("httpMethod").String()
+		mapKey := path + " " + method
+		if opt.ID != "" {
+			routeIDMap[mapKey] = opt.ID
+		}
+		if _, ok := routeErrMap[mapKey]; !ok {
+			routeErrMap[mapKey] = make(map[int]string)
+		}
 		for k, v := range opt.Errors {
-			codeDesc.m[k] = v
+			routeErrMap[mapKey][k] = v
 			builder = builder.Returns(k, v, nil)
 		}
 		if opt.Auth {
-			builder = builder.Param(ws.HeaderParameter("Authorization", "JWT Token").
-				DefaultValue("bearer ").DataType("string").Required(true))
+			builder = builder.Metadata("jwt", true)
 		}
 		if len(opt.NeedPermissions) != 0 {
 			builder = builder.Notes("Need Permission: " +
@@ -121,35 +149,19 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			Info("router", Log().
+			Info("routers", Log().
 				Str("path", r.Path).
 				Str("method", r.Method))
-			routes[ri].Metadata = map[string]interface{}{
-				restfulspec.KeyOpenAPITags: []string{v.NameSpace},
+			if routes[ri].Metadata == nil {
+				routes[ri].Metadata = make(map[string]interface{})
 			}
+			routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
 		}
 
 	}
 }
 
 func run(addr string, handler http.Handler, cfg *RunConfig) {
-	// log errors
-	lenCodeDesc := len(codeDesc.m)
-	if lenCodeDesc > 0 {
-		codeArr := make([]int, lenCodeDesc)
-		i := 0
-		for k := range codeDesc.m {
-			codeArr[i] = k
-			i++
-		}
-		sort.Ints(codeArr)
-		Info(
-			"errors", Log().
-				Int("from", codeArr[0]).
-				Int("to", codeArr[lenCodeDesc-1]),
-		)
-	}
-
 	address := addr
 	hostAndPort := strings.Split(addr, ":")
 	if len(hostAndPort) == 0 || (len(hostAndPort) > 1 && hostAndPort[1] == "") {
@@ -177,55 +189,26 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 	Info("server is down gracefully", Log())
 }
 
-type ctlCtx struct {
-	filters  []restful.FilterFunction
-	function restful.RouteFunction
-	method   string
-	path     string
-}
-
-// CtlFuncs is a map contains all handler of a controller.
-// the key of CtlFuncs is "Method Path" of handler.
-type CtlFuncs map[string]ctlCtx
-
-// GetCtlFuncs returns the handler map of a controller.
-func GetCtlFuncs(ctlInterface CtlInterface) CtlFuncs {
-	ws := new(restful.WebService)
-	ws.Path("/").
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON)
-	ctlInterface.WebService(WS{ws})
-	m := make(map[string]ctlCtx)
-	for _, v := range ws.Routes() {
-		m[v.Method+" "+v.Path] = ctlCtx{
-			filters:  v.Filters,
-			function: v.Function,
-			method:   v.Method,
-			path:     v.Path,
-		}
-	}
-	return m
-}
-
-func (m CtlFuncs) httpHandler(n string) http.Handler {
-	c := restful.NewContainer()
-	ws := new(restful.WebService)
-	for _, f := range m[n].filters {
-		ws = ws.Filter(f)
-	}
-	ws.Route(ws.Method(m[n].method).Path(m[n].path).To(func(
-		request *restful.Request,
-		response *restful.Response,
-	) {
-		m[n].function(request, response)
-	}))
-	c.Add(ws)
-	return c
+type TestServer struct {
+	*httptest.Server
 }
 
 // NewTestServer returns a Test Server.
-func (m CtlFuncs) NewTestServer(method, path string) *httptest.Server {
-	return httptest.NewServer(m.httpHandler(method + " " + path))
+func (c *Container) NewTestServer() *TestServer {
+	return &TestServer{
+		Server: httptest.NewServer(c),
+	}
+}
+
+// NewTestServer returns a Test Server.
+func NewTestServer() *TestServer {
+	return &TestServer{
+		Server: httptest.NewServer(restful.DefaultContainer),
+	}
+}
+
+func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
+	return httpexpect.New(t, s.URL)
 }
 
 // LogFilter logs

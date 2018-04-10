@@ -2,6 +2,7 @@ package biu
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
@@ -61,5 +62,52 @@ func enrichSwaggerObject(info SwaggerInfo) func(swo *spec.Swagger) {
 			InfoProps: infoProps,
 		}
 		swo.Tags = swaggerTags
+		swo.SecurityDefinitions = map[string]*spec.SecurityScheme{
+			"jwt": spec.APIKeyAuth("Authorization", "header"),
+		}
+		for _, ws := range restful.RegisteredWebServices() {
+			for _, route := range ws.Routes() {
+				processAuth(swo, route)
+			}
+		}
 	}
+}
+
+func processAuth(swo *spec.Swagger, route restful.Route) {
+	_, ok := route.Metadata["jwt"]
+	if !ok {
+		return
+	}
+	pOption := getPathOption(swo, route)
+	if pOption != nil {
+		pOption.SecuredWith("jwt")
+	}
+}
+
+func getPathOption(swo *spec.Swagger, route restful.Route) *spec.Operation {
+	p, err := swo.Paths.JSONLookup(strings.TrimRight(route.Path, "/"))
+	if err != nil {
+		return nil
+	}
+	item := p.(*spec.PathItem)
+	var pOption *spec.Operation
+	switch method := strings.ToLower(route.Method); method {
+	case "get":
+		pOption = item.Get
+	case "post":
+		pOption = item.Post
+	case "patch":
+		pOption = item.Patch
+	case "delete":
+		pOption = item.Delete
+	case "put":
+		pOption = item.Put
+	case "head":
+		pOption = item.Head
+	case "options":
+		pOption = item.Options
+	default:
+		return nil
+	}
+	return pOption
 }

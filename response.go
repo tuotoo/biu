@@ -4,22 +4,33 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"reflect"
+	"runtime"
 	"strings"
-	"sync"
+	"sync/atomic"
 
 	"github.com/emicklei/go-restful"
 	"github.com/json-iterator/go"
 )
 
-var codeDesc struct {
-	sync.Once
-	m map[int]string
-}
+var anonymousFuncCount int32
 
-func init() {
-	codeDesc.Do(func() {
-		codeDesc.m = make(map[int]string)
-	})
+// nameOfFunction returns the short name of the function f for documentation.
+// It uses a runtime feature for debugging ; its value may change for later Go versions.
+func nameOfFunction(f interface{}) string {
+	fun := runtime.FuncForPC(reflect.ValueOf(f).Pointer())
+	tokenized := strings.Split(fun.Name(), ".")
+	last := tokenized[len(tokenized)-1]
+	last = strings.TrimSuffix(last, ")·fm") // < Go 1.5
+	last = strings.TrimSuffix(last, ")-fm") // Go 1.5
+	last = strings.TrimSuffix(last, "·fm")  // < Go 1.5
+	last = strings.TrimSuffix(last, "-fm")  // Go 1.5
+	if last == "func1" {                    // this could mean conflicts in API docs
+		val := atomic.AddInt32(&anonymousFuncCount, 1)
+		last = "func" + fmt.Sprintf("%d", val)
+		atomic.StoreInt32(&anonymousFuncCount, val)
+	}
+	return last
 }
 
 // Handle transform a biu handler to a restful.RouteFunction.
@@ -54,13 +65,6 @@ func WrapHandler(f func(ctx Ctx)) http.HandlerFunc {
 	}
 }
 
-// AddErrDesc adds map of code-message to stdCodeDesc
-func AddErrDesc(m map[int]string) {
-	for k, v := range m {
-		codeDesc.m[k] = v
-	}
-}
-
 const (
 	defaultMaxMemory = 32 << 20 // 32 MB
 )
@@ -76,13 +80,25 @@ type Ctx struct {
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
 func (ctx *Ctx) ResponseJSON(v interface{}) {
-	CommonResponse(ctx.Response, 0, "", v)
+	CommonResponse(ctx.Response, ctx.RouteID(), 0, "", v)
 }
 
 // ResponseError is a convenience method to response an error code and message.
 // It uses jsoniter for marshalling the value.
 func (ctx *Ctx) ResponseError(msg string, code int) {
-	CommonResponse(ctx.Response, code, msg, nil)
+	CommonResponse(ctx.Response, ctx.RouteID(), code, msg, nil)
+}
+
+func (ctx *Ctx) RouteID() string {
+	return routeIDMap[ctx.RouteSignature()]
+}
+
+func (ctx *Ctx) RouteSignature() string {
+	return ctx.SelectedRoutePath() + " " + ctx.Request.Request.Method
+}
+
+func (ctx *Ctx) ErrMsg(code int) string {
+	return routeErrMap[ctx.RouteSignature()][code]
 }
 
 // ContainsError is a convenience method to check error is nil.
@@ -90,7 +106,7 @@ func (ctx *Ctx) ResponseError(msg string, code int) {
 // else it will log the error, make a CommonResp response and return true.
 // if code is 0, it will use err.Error() as CommonResp.message.
 func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
-	msg := codeDesc.m[code]
+	msg := ctx.ErrMsg(code)
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
@@ -100,18 +116,18 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	if code == 0 {
 		msg = err.Error()
 	}
-	ResponseError(ctx.Response, msg, code)
+	ResponseError(ctx.Response, ctx.RouteID(), msg, code)
 	return true
 }
 
 // ResponseStdErrCode is a convenience method response a code
 // with msg in Code Desc.
 func (ctx *Ctx) ResponseStdErrCode(code int, v ...interface{}) {
-	msg := codeDesc.m[code]
+	msg := ctx.ErrMsg(code)
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	ResponseError(ctx.Response, msg, code)
+	ResponseError(ctx.Response, ctx.RouteID(), msg, code)
 }
 
 // UserID returns UserID stored in attribute.
@@ -169,29 +185,29 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
-func ResponseJSON(w http.ResponseWriter, v interface{}) {
-	CommonResponse(w, 0, "", v)
+func ResponseJSON(w http.ResponseWriter, routeID string, v interface{}) {
+	CommonResponse(w, routeID, 0, "", v)
 }
 
 // ResponseError is a convenience method to response an error code and message.
 // It uses jsoniter for marshalling the value.
-func ResponseError(w http.ResponseWriter, msg string, code int) {
-	CommonResponse(w, code, msg, nil)
+func ResponseError(w http.ResponseWriter, routeID string, msg string, code int) {
+	CommonResponse(w, routeID, code, msg, nil)
 }
 
 // ContainsError is a convenience method to check error is nil.
 // If error is nil, it will return false,
 // else it will log the error, make a CommonResp response and return true.
 // if code is 0, it will use err.Error() as CommonResp.message.
-func ContainsError(w http.ResponseWriter, err error, code int) bool {
-	msg := codeDesc.m[code]
+func ContainsError(w http.ResponseWriter, RouteSignature string, err error, code int) bool {
+	msg := routeErrMap[RouteSignature][code]
 	if CheckError(err, Log().Int("code", code).Str("msg", msg)) {
 		return false
 	}
 	if code == 0 {
 		msg = err.Error()
 	}
-	ResponseError(w, msg, code)
+	ResponseError(w, routeIDMap[RouteSignature], msg, code)
 	return true
 }
 
@@ -211,11 +227,12 @@ func CheckError(err error, log *LogEvt) bool {
 // CommonResponse is a response func.
 // just replace it if you'd like to custom response.
 var CommonResponse = func(w http.ResponseWriter,
-	code int, message string, data interface{}) {
+	routeID string, code int, message string, data interface{}) {
 	if err := writeJSON(w, http.StatusOK, CommonResp{
 		Code:    code,
 		Message: message,
 		Data:    data,
+		RouteID: routeID,
 	}); err != nil {
 		Warn("json encode", Log().Err(err))
 	}
