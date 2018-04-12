@@ -12,6 +12,8 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/json-iterator/go"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 var anonymousFuncCount int32
@@ -111,7 +113,11 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	if CheckError(err, Log().Int("code", code).Str("msg", msg)) {
+	if CheckError(err, Log().
+		Str("routeID", ctx.RouteID()).
+		Str("routeSig", ctx.RouteSignature()).
+		Int("code", code).
+		Str("msg", msg)) {
 		return false
 	}
 	if code == 0 {
@@ -266,7 +272,8 @@ func CheckError(err error, log *LogEvt) bool {
 		return true
 	}
 	if log != nil {
-		Info("verify error", log.Err(err))
+		Info("verify error", log.Str(zerolog.ErrorFieldName,
+			fmt.Sprintf("%+v", errors.WithStack(err))))
 	}
 	return false
 }
