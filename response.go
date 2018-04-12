@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/emicklei/go-restful"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/json-iterator/go"
 )
 
@@ -180,6 +181,35 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 		return vs, nil
 	}
 	return []string{}, nil
+}
+
+// Bind checks the Content-Type to select a binding engine automatically,
+// Depending the "Content-Type" header different bindings are used:
+//     "application/json" --> JSON binding
+//     "application/xml"  --> XML binding
+// otherwise --> returns an error.
+// It parses the request's body as JSON if Content-Type == "application/json" using JSON or XML as a JSON input.
+// It decodes the json payload into the struct specified as a pointer.
+// It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
+func (ctx *Ctx) Bind(obj interface{}) error {
+	b := binding.Default(ctx.Request.Request.Method, ctx.Request.HeaderParameter("Content-Type"))
+	return ctx.BindWith(obj, b)
+}
+
+// BindWith binds the passed struct pointer using the specified binding engine.
+// See the binding package.
+func (ctx *Ctx) BindWith(obj interface{}, b binding.Binding) error {
+	return b.Bind(ctx.Request.Request, obj)
+}
+
+// BindJSON is a shortcut for c.BindWith(obj, binding.JSON).
+func (ctx *Ctx) BindJSON(obj interface{}) error {
+	return ctx.BindWith(obj, binding.JSON)
+}
+
+// BindQuery is a shortcut for c.BindWith(obj, binding.Query).
+func (ctx *Ctx) BindQuery(obj interface{}) error {
+	return ctx.BindWith(obj, binding.Query)
 }
 
 // ResponseJSON is a convenience method
