@@ -183,6 +183,23 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 	return []string{}, nil
 }
 
+func (ctx *Ctx) Query(name string) Parameter {
+	return Parameter{Value: []string{ctx.QueryParameter(name)}}
+}
+
+func (ctx *Ctx) Form(name string) Parameter {
+	val, err := ctx.BodyParameterValues(name)
+	return Parameter{Value: val, error: err}
+}
+
+func (ctx *Ctx) Path(name string) Parameter {
+	return Parameter{Value: []string{ctx.PathParameter(name)}}
+}
+
+func (ctx *Ctx) Header(name string) Parameter {
+	return Parameter{Value: []string{ctx.HeaderParameter(name)}}
+}
+
 // Bind checks the Content-Type to select a binding engine automatically,
 // Depending the "Content-Type" header different bindings are used:
 //     "application/json" --> JSON binding
