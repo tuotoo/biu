@@ -104,6 +104,10 @@ func (ctx *Ctx) ErrMsg(code int) string {
 	return routeErrMap[ctx.RouteSignature()][code]
 }
 
+func (ctx *Ctx) Redirect(url string, code int) {
+	http.Redirect(ctx.ResponseWriter, ctx.Request.Request, url, code)
+}
+
 // ContainsError is a convenience method to check error is nil.
 // If error is nil, it will return false,
 // else it will log the error, make a CommonResp response and return true.
