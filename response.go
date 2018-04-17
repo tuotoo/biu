@@ -92,18 +92,23 @@ func (ctx *Ctx) ResponseError(msg string, code int) {
 	CommonResponse(ctx.Response, ctx.RouteID(), code, msg, nil)
 }
 
+// RouteID returns the RouteID of current route.
 func (ctx *Ctx) RouteID() string {
 	return routeIDMap[ctx.RouteSignature()]
 }
 
+// RouteSignature returns the signature of current route.
+// Example: /v1/user/login POST
 func (ctx *Ctx) RouteSignature() string {
 	return ctx.SelectedRoutePath() + " " + ctx.Request.Request.Method
 }
 
+// ErrMsg returns the message of a error code in current route.
 func (ctx *Ctx) ErrMsg(code int) string {
 	return routeErrMap[ctx.RouteSignature()][code]
 }
 
+// Redirect replies to the request with a redirect to url.
 func (ctx *Ctx) Redirect(url string, code int) {
 	http.Redirect(ctx.ResponseWriter, ctx.Request.Request, url, code)
 }
