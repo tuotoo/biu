@@ -157,19 +157,16 @@ func (ctx *Ctx) UserID() string {
 
 // IP returns the IP address of request.
 func (ctx *Ctx) IP() string {
-	ipArr := ctx.Proxy()
-	if len(ipArr) > 0 && ipArr[0] != "" {
-		ip, _, err := net.SplitHostPort(ipArr[0])
-		if err != nil {
-			ip = ipArr[0]
-		}
-		return ip
+	req := ctx.Request.Request
+	ra := req.RemoteAddr
+	if ip := ctx.HeaderParameter("X-Forwarded-For"); ip != "" {
+		ra = strings.Split(ip, ", ")[0]
+	} else if ip := ctx.HeaderParameter("X-Real-IP"); ip != "" {
+		ra = ip
+	} else {
+		ra, _, _ = net.SplitHostPort(ra)
 	}
-	ip, _, err := net.SplitHostPort(ctx.Request.Request.RemoteAddr)
-	if err != nil {
-		return ctx.Request.Request.RemoteAddr
-	}
-	return ip
+	return ra
 }
 
 // Proxy returns the proxy endpoints behind a request.
