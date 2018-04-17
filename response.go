@@ -10,7 +10,10 @@ import (
 	"sync/atomic"
 
 	"github.com/emicklei/go-restful"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/json-iterator/go"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 var anonymousFuncCount int32
@@ -89,16 +92,25 @@ func (ctx *Ctx) ResponseError(msg string, code int) {
 	CommonResponse(ctx.Response, ctx.RouteID(), code, msg, nil)
 }
 
+// RouteID returns the RouteID of current route.
 func (ctx *Ctx) RouteID() string {
 	return routeIDMap[ctx.RouteSignature()]
 }
 
+// RouteSignature returns the signature of current route.
+// Example: /v1/user/login POST
 func (ctx *Ctx) RouteSignature() string {
 	return ctx.SelectedRoutePath() + " " + ctx.Request.Request.Method
 }
 
+// ErrMsg returns the message of a error code in current route.
 func (ctx *Ctx) ErrMsg(code int) string {
 	return routeErrMap[ctx.RouteSignature()][code]
+}
+
+// Redirect replies to the request with a redirect to url.
+func (ctx *Ctx) Redirect(url string, code int) {
+	http.Redirect(ctx.ResponseWriter, ctx.Request.Request, url, code)
 }
 
 // ContainsError is a convenience method to check error is nil.
@@ -110,7 +122,11 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	if CheckError(err, Log().Int("code", code).Str("msg", msg)) {
+	if CheckError(err, Log().
+		Str("routeID", ctx.RouteID()).
+		Str("routeSig", ctx.RouteSignature()).
+		Int("code", code).
+		Str("msg", msg)) {
 		return false
 	}
 	if code == 0 {
@@ -182,6 +198,56 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 	return []string{}, nil
 }
 
+// Query reads query parameter with name.
+func (ctx *Ctx) Query(name string) Parameter {
+	return Parameter{Value: []string{ctx.QueryParameter(name)}}
+}
+
+// Form reads form parameter with name.
+func (ctx *Ctx) Form(name string) Parameter {
+	val, err := ctx.BodyParameterValues(name)
+	return Parameter{Value: val, error: err}
+}
+
+// Path reads path parameter with name.
+func (ctx *Ctx) Path(name string) Parameter {
+	return Parameter{Value: []string{ctx.PathParameter(name)}}
+}
+
+// Header reads header parameter with name.
+func (ctx *Ctx) Header(name string) Parameter {
+	return Parameter{Value: []string{ctx.HeaderParameter(name)}}
+}
+
+// Bind checks the Content-Type to select a binding engine automatically,
+// Depending the "Content-Type" header different bindings are used:
+//     "application/json" --> JSON binding
+//     "application/xml"  --> XML binding
+// otherwise --> returns an error.
+// It parses the request's body as JSON if Content-Type == "application/json" using JSON or XML as a JSON input.
+// It decodes the json payload into the struct specified as a pointer.
+// It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
+func (ctx *Ctx) Bind(obj interface{}) error {
+	b := binding.Default(ctx.Request.Request.Method, ctx.Request.HeaderParameter("Content-Type"))
+	return ctx.BindWith(obj, b)
+}
+
+// BindWith binds the passed struct pointer using the specified binding engine.
+// See the binding package.
+func (ctx *Ctx) BindWith(obj interface{}, b binding.Binding) error {
+	return b.Bind(ctx.Request.Request, obj)
+}
+
+// BindJSON is a shortcut for ctx.BindWith(obj, binding.JSON).
+func (ctx *Ctx) BindJSON(obj interface{}) error {
+	return ctx.BindWith(obj, binding.JSON)
+}
+
+// BindQuery is a shortcut for ctx.BindWith(obj, binding.Query).
+func (ctx *Ctx) BindQuery(obj interface{}) error {
+	return ctx.BindWith(obj, binding.Query)
+}
+
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
@@ -219,7 +285,8 @@ func CheckError(err error, log *LogEvt) bool {
 		return true
 	}
 	if log != nil {
-		Info("verify error", log.Err(err))
+		Info("verify error", log.Str(zerolog.ErrorFieldName,
+			fmt.Sprintf("%+v", errors.WithStack(err))))
 	}
 	return false
 }

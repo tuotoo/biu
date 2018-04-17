@@ -189,6 +189,7 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 	Info("server is down gracefully", Log())
 }
 
+// TestServer wraps a httptest.Server
 type TestServer struct {
 	*httptest.Server
 }
@@ -207,6 +208,7 @@ func NewTestServer() *TestServer {
 	}
 }
 
+// WithT accept testing.T and returns httpexpect.Expect
 func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
 	return httpexpect.New(t, s.URL)
 }
