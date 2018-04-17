@@ -198,19 +198,23 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 	return []string{}, nil
 }
 
+// Query reads query parameter with name.
 func (ctx *Ctx) Query(name string) Parameter {
 	return Parameter{Value: []string{ctx.QueryParameter(name)}}
 }
 
+// Form reads form parameter with name.
 func (ctx *Ctx) Form(name string) Parameter {
 	val, err := ctx.BodyParameterValues(name)
 	return Parameter{Value: val, error: err}
 }
 
+// Path reads path parameter with name.
 func (ctx *Ctx) Path(name string) Parameter {
 	return Parameter{Value: []string{ctx.PathParameter(name)}}
 }
 
+// Header reads header parameter with name.
 func (ctx *Ctx) Header(name string) Parameter {
 	return Parameter{Value: []string{ctx.HeaderParameter(name)}}
 }
@@ -234,12 +238,12 @@ func (ctx *Ctx) BindWith(obj interface{}, b binding.Binding) error {
 	return b.Bind(ctx.Request.Request, obj)
 }
 
-// BindJSON is a shortcut for c.BindWith(obj, binding.JSON).
+// BindJSON is a shortcut for ctx.BindWith(obj, binding.JSON).
 func (ctx *Ctx) BindJSON(obj interface{}) error {
 	return ctx.BindWith(obj, binding.JSON)
 }
 
-// BindQuery is a shortcut for c.BindWith(obj, binding.Query).
+// BindQuery is a shortcut for ctx.BindWith(obj, binding.Query).
 func (ctx *Ctx) BindQuery(obj interface{}) error {
 	return ctx.BindWith(obj, binding.Query)
 }
