@@ -37,8 +37,8 @@ func nameOfFunction(f interface{}) string {
 	return last
 }
 
-// EnableErrc enables using errc as error handler in biu.Ctx.
-var EnableErrc bool
+// DisableErrHandler disables error handler using errc.
+var DisableErrHandler bool
 
 // Handle transform a biu handler to a restful.RouteFunction.
 func Handle(f func(ctx Ctx)) restful.RouteFunction {
@@ -47,10 +47,10 @@ func Handle(f func(ctx Ctx)) restful.RouteFunction {
 			Request:  request,
 			Response: response,
 		}
-		if EnableErrc {
+		if !DisableErrHandler {
 			e := errc.Catch(new(error))
 			defer e.Handle()
-			ctx.catcher = e
+			ctx.ErrCatcher = e
 		}
 		f(ctx)
 	}
@@ -87,7 +87,7 @@ type Ctx struct {
 	*restful.Request
 	*restful.Response
 	*restful.FilterChain
-	catcher errc.Catcher
+	ErrCatcher errc.Catcher
 }
 
 // ResponseJSON is a convenience method
@@ -172,11 +172,10 @@ func (e errHandler) Handle(s errc.State, err error) error {
 	return err
 }
 
-// MustError causes a return from a function if err is not nil.
-// Should enable EnableErrc.
-func (ctx *Ctx) MustError(err error, code int, v ...interface{}) {
-	if EnableErrc {
-		ctx.catcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
+// Must causes a return from a function if err is not nil.
+func (ctx *Ctx) Must(err error, code int, v ...interface{}) {
+	if !DisableErrHandler {
+		ctx.ErrCatcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
 	}
 }
 
