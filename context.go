@@ -12,6 +12,7 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/json-iterator/go"
+	"github.com/mpvl/errc"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -36,13 +37,22 @@ func nameOfFunction(f interface{}) string {
 	return last
 }
 
+// EnableErrc enables using errc as error handler in biu.Ctx.
+var EnableErrc bool
+
 // Handle transform a biu handler to a restful.RouteFunction.
 func Handle(f func(ctx Ctx)) restful.RouteFunction {
 	return func(request *restful.Request, response *restful.Response) {
-		f(Ctx{
+		ctx := Ctx{
 			Request:  request,
 			Response: response,
-		})
+		}
+		if EnableErrc {
+			e := errc.Catch(new(error))
+			defer e.Handle()
+			ctx.catcher = e
+		}
+		f(ctx)
 	}
 }
 
@@ -77,6 +87,7 @@ type Ctx struct {
 	*restful.Request
 	*restful.Response
 	*restful.FilterChain
+	catcher errc.Catcher
 }
 
 // ResponseJSON is a convenience method
@@ -134,6 +145,39 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	}
 	ResponseError(ctx.Response, ctx.RouteID(), msg, code)
 	return true
+}
+
+type errHandler struct {
+	ctx  *Ctx
+	code int
+	v    []interface{}
+}
+
+// Handle implements errc.Handle
+func (e errHandler) Handle(s errc.State, err error) error {
+	msg := e.ctx.ErrMsg(e.code)
+	if len(e.v) > 0 {
+		msg = fmt.Sprintf(msg, e.v...)
+	}
+	Info("verify error", Log().
+		Str("routeID", e.ctx.RouteID()).
+		Str("routeSig", e.ctx.RouteSignature()).
+		Int("code", e.code).
+		Str("msg", msg).Str(zerolog.ErrorFieldName,
+		fmt.Sprintf("%+v", errors.WithStack(err))))
+	if e.code == 0 {
+		msg = err.Error()
+	}
+	ResponseError(e.ctx.Response, e.ctx.RouteID(), msg, e.code)
+	return err
+}
+
+// MustError causes a return from a function if err is not nil.
+// Should enable EnableErrc.
+func (ctx *Ctx) MustError(err error, code int, v ...interface{}) {
+	if EnableErrc {
+		ctx.catcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
+	}
 }
 
 // ResponseStdErrCode is a convenience method response a code
