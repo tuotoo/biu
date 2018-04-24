@@ -22,6 +22,7 @@ import (
 // nolint
 // MIME_HTML_FORM is application/x-www-form-urlencoded header
 const MIME_HTML_FORM = "application/x-www-form-urlencoded"
+const MIME_FILE_FORM = "multipart/form-data"
 
 var swaggerTags []spec.Tag
 
