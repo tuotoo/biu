@@ -1,9 +1,16 @@
 package biu
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
 
+	"github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
 
@@ -11,6 +18,100 @@ import (
 type LogEvt = zerolog.Event
 
 var logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+
+const (
+	cReset    = 0
+	cBold     = 1
+	cRed      = 31
+	cGreen    = 32
+	cYellow   = 33
+	cBlue     = 34
+	cMagenta  = 35
+	cCyan     = 36
+	cGray     = 37
+	cDarkGray = 90
+)
+
+var consoleBufPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 100))
+	},
+}
+
+type ColorWriter struct{}
+
+func (w ColorWriter) Write(p []byte) (n int, err error) {
+	var event map[string]interface{}
+	err = jsoniter.Unmarshal(p, &event)
+	if err != nil {
+		return
+	}
+	buf := consoleBufPool.Get().(*bytes.Buffer)
+	defer consoleBufPool.Put(buf)
+	lvlColor := cReset
+	level := "????"
+	if l, ok := event[zerolog.LevelFieldName].(string); ok {
+		level = strings.ToUpper(l)[0:4]
+	}
+	fmt.Fprintf(buf, "%s |%s| %s",
+		colorize(event[zerolog.TimestampFieldName], cDarkGray),
+		colorize(level, lvlColor),
+		colorize(event[zerolog.MessageFieldName], cReset))
+	fields := make([]string, 0, len(event))
+	for field := range event {
+		switch field {
+		case zerolog.LevelFieldName, zerolog.TimestampFieldName, zerolog.MessageFieldName:
+			continue
+		}
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+	for _, field := range fields {
+		fmt.Fprintf(buf, " %s: ", colorize(field, cCyan))
+		switch value := event[field].(type) {
+		case string:
+			if needsQuote(value) {
+				buf.WriteString(strconv.Quote(value))
+			} else {
+				buf.WriteString(value)
+			}
+		case map[string]interface{}:
+			if len(value) == 0 {
+				fmt.Fprintf(buf, "%s", colorize("NONE", cMagenta))
+				continue
+			}
+			for k, v := range value {
+				fmt.Fprintf(buf, "%s=", colorize(k, cYellow))
+				fmt.Fprint(buf, v)
+				fmt.Fprint(buf, " ")
+			}
+		default:
+			fmt.Fprintf(buf, "value %T", value)
+			fmt.Fprint(buf, value)
+		}
+	}
+	buf.WriteByte('\n')
+	buf.WriteTo(os.Stderr)
+	n = len(p)
+	return
+}
+
+func colorize(s interface{}, color int) string {
+	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", color, s)
+}
+
+func needsQuote(s string) bool {
+	for i := range s {
+		if s[i] < 0x20 || s[i] > 0x7e || s[i] == ' ' || s[i] == '\\' || s[i] == '"' {
+			return true
+		}
+	}
+	return false
+}
+
+func UseColorLogger() {
+	SetLoggerOutput(ColorWriter{})
+}
 
 // SetLoggerOutput sets the output of logger.
 func SetLoggerOutput(w io.Writer) {
