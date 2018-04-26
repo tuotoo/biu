@@ -150,9 +150,10 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			Info("routers", Log().
+			Info().
 				Str("path", r.Path).
-				Str("method", r.Method))
+				Str("method", r.Method).
+				Msg("routers")
 			if routes[ri].Metadata == nil {
 				routes[ri].Metadata = make(map[string]interface{})
 			}
@@ -180,21 +181,21 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 		Handler: handler,
 	}
 	go func() {
-		Info("listening", Log().Str("addr", address))
-		Fatal("listening", Log().Err(server.ListenAndServe()))
+		Info().Str("addr", address).Msg("listening")
+		Fatal().Err(server.ListenAndServe()).Msg("listening")
 	}()
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	Info("signal receive", Log().Interface("ch", <-ch))
+	Info().Interface("ch", <-ch).Msg("signal receive")
 	if cfg != nil && cfg.BeforeShutDown != nil {
 		cfg.BeforeShutDown()
 	}
-	Info("shut down", Log().Err(server.Shutdown(context.TODO())))
+	Info().Err(server.Shutdown(context.TODO())).Msg("shut down")
 	if cfg != nil && cfg.AfterShutDown != nil {
 		cfg.AfterShutDown()
 	}
-	Info("server is down gracefully", Log())
+	Info().Msg("server is down gracefully")
 }
 
 // TestServer wraps a httptest.Server

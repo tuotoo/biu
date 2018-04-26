@@ -133,7 +133,7 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
-	if CheckError(err, Log().
+	if CheckError(err, Info().
 		Str("routeID", ctx.RouteID()).
 		Str("routeSig", ctx.RouteSignature()).
 		Int("code", code).
@@ -159,12 +159,13 @@ func (e errHandler) Handle(s errc.State, err error) error {
 	if len(e.v) > 0 {
 		msg = fmt.Sprintf(msg, e.v...)
 	}
-	Info("verify error", Log().
+	Info().
 		Str("routeID", e.ctx.RouteID()).
 		Str("routeSig", e.ctx.RouteSignature()).
 		Int("code", e.code).
 		Str("msg", msg).Str(zerolog.ErrorFieldName,
-		fmt.Sprintf("%+v\n", errors.WithStack(err))))
+		fmt.Sprintf("%+v\n", errors.WithStack(err))).
+		Msg("verify error")
 	if e.code == 0 {
 		msg = err.Error()
 	}
@@ -272,10 +273,20 @@ func (ctx *Ctx) Bind(obj interface{}) error {
 	return ctx.BindWith(obj, b)
 }
 
+// MustBind is a shortcur for ctx.Must(ctx.Bind(obj), code, v...)
+func (ctx *Ctx) MustBind(obj interface{}, code int, v ...interface{}) {
+	ctx.Must(ctx.Bind(obj), code, v...)
+}
+
 // BindWith binds the passed struct pointer using the specified binding engine.
 // See the binding package.
 func (ctx *Ctx) BindWith(obj interface{}, b binding.Binding) error {
 	return b.Bind(ctx.Request.Request, obj)
+}
+
+// MustBindWith is a shortcur for ctx.Must(ctx.BindWith(obj, b), code, v...)
+func (ctx *Ctx) MustBindWith(obj interface{}, b binding.Binding, code int, v ...interface{}) {
+	ctx.Must(ctx.BindWith(obj, b), code, v...)
 }
 
 // BindJSON is a shortcut for ctx.BindWith(obj, binding.JSON).
@@ -283,9 +294,19 @@ func (ctx *Ctx) BindJSON(obj interface{}) error {
 	return ctx.BindWith(obj, binding.JSON)
 }
 
+// MustBindJSON is a shortcur for ctx.Must(ctx.BindJSON(obj), code, v...)
+func (ctx *Ctx) MustBindJSON(obj interface{}, code int, v ...interface{}) {
+	ctx.Must(ctx.BindJSON(obj), code, v...)
+}
+
 // BindQuery is a shortcut for ctx.BindWith(obj, binding.Query).
 func (ctx *Ctx) BindQuery(obj interface{}) error {
 	return ctx.BindWith(obj, binding.Query)
+}
+
+// MustBindQuery is a shortcur for ctx.Must(ctx.BindQuery(obj), code, v...)
+func (ctx *Ctx) MustBindQuery(obj interface{}, code int, v ...interface{}) {
+	ctx.Must(ctx.BindQuery(obj), code, v...)
 }
 
 // ResponseJSON is a convenience method
@@ -307,7 +328,7 @@ func ResponseError(w http.ResponseWriter, routeID string, msg string, code int) 
 // if code is 0, it will use err.Error() as CommonResp.message.
 func ContainsError(w http.ResponseWriter, RouteSignature string, err error, code int) bool {
 	msg := routeErrMap[RouteSignature][code]
-	if CheckError(err, Log().Int("code", code).Str("msg", msg)) {
+	if CheckError(err, Info().Int("code", code).Str("msg", msg)) {
 		return false
 	}
 	if code == 0 {
@@ -320,13 +341,14 @@ func ContainsError(w http.ResponseWriter, RouteSignature string, err error, code
 // CheckError is a convenience method to check error is nil.
 // If error is nil, it will return true,
 // else it will log the error and return false
-func CheckError(err error, log *LogEvt) bool {
+func CheckError(err error, log *LogWrap) bool {
 	if err == nil {
 		return true
 	}
 	if log != nil {
-		Info("verify error", log.Str(zerolog.ErrorFieldName,
-			fmt.Sprintf("%+v", errors.WithStack(err))))
+		log.Str(zerolog.ErrorFieldName,
+			fmt.Sprintf("%+v", errors.WithStack(err))).
+			Msg("verify error")
 	}
 	return false
 }
@@ -341,7 +363,7 @@ var CommonResponse = func(w http.ResponseWriter,
 		Data:    data,
 		RouteID: routeID,
 	}); err != nil {
-		Warn("json encode", Log().Err(err))
+		Warn().Err(err).Msg("json encode")
 	}
 }
 

@@ -9,13 +9,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
-
-// LogEvt is alias of zerolog.Event
-type LogEvt = zerolog.Event
 
 var logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
 
@@ -123,44 +121,326 @@ func SetLoggerLevel(level zerolog.Level) {
 	logger = logger.Level(level)
 }
 
-// Log returns *zerolog.Event.
-func Log() *LogEvt {
-	return zerolog.Dict()
+type LogWrap struct {
+	*zerolog.Event
+	Level zerolog.Level
 }
 
-// Logger get the default logger of biu.
-func Logger() zerolog.Logger {
-	return logger
+// Fields is a helper function to use a map to set fields using type assertion.
+func (l *LogWrap) Fields(fields map[string]interface{}) *LogWrap {
+	l.Event = l.Event.Fields(fields)
+	return l
 }
 
-// Debug starts a new message with info level.
-func Debug(msg string, evt *LogEvt) {
-	logger.Debug().Dict("fields", evt).Msg(msg)
+// Array adds the field key with an array to the event context.
+// Use zerolog.Arr() to create the array or pass a type that
+// implement the LogArrayMarshaler interface.
+func (l *LogWrap) Array(key string, arr zerolog.LogArrayMarshaler) *LogWrap {
+	l.Event = l.Event.Array(key, arr)
+	return l
 }
 
-// Info starts a new message with info level.
-func Info(msg string, evt *LogEvt) {
-	logger.Info().Dict("fields", evt).Msg(msg)
+// Object marshals an object that implement the LogObjectMarshaler interface.
+func (l *LogWrap) Object(key string, obj zerolog.LogObjectMarshaler) *LogWrap {
+	l.Event = l.Event.Object(key, obj)
+	return l
 }
 
-// Warn starts a new message with warn level.
-func Warn(msg string, evt *LogEvt) {
-	logger.Warn().Dict("fields", evt).Msg(msg)
+// Str adds the field key with val as a string to the *Event context.
+func (l *LogWrap) Str(key, val string) *LogWrap {
+	l.Event = l.Event.Str(key, val)
+	return l
 }
 
-// Error starts a new message with error level.
-func Error(msg string, evt *LogEvt) {
-	logger.Error().Dict("fields", evt).Msg(msg)
+// Strs adds the field key with vals as a []string to the *Event context.
+func (l *LogWrap) Strs(key string, vals []string) *LogWrap {
+	l.Event = l.Event.Strs(key, vals)
+	return l
 }
 
-// Fatal starts a new message with fatal level.
-// The os.Exit(1) function is called by the Msg method.
-func Fatal(msg string, evt *LogEvt) {
-	logger.Fatal().Dict("fields", evt).Msg(msg)
+// Bytes adds the field key with val as a string to the *Event context.
+//
+// Runes outside of normal ASCII ranges will be hex-encoded in the resulting
+// JSON.
+func (l *LogWrap) Bytes(key string, val []byte) *LogWrap {
+	l.Event = l.Event.Bytes(key, val)
+	return l
 }
 
-// Panic starts a new message with panic level.
-// The message is also sent to the panic function.
-func Panic(msg string, evt *LogEvt) {
-	logger.Panic().Dict("fields", evt).Msg(msg)
+// AnErr adds the field key with err as a string to the *Event context.
+// If err is nil, no field is added.
+func (l *LogWrap) AnErr(key string, err error) *LogWrap {
+	l.Event = l.Event.AnErr(key, err)
+	return l
+}
+
+// Errs adds the field key with errs as an array of strings to the *Event context.
+// If err is nil, no field is added.
+func (l *LogWrap) Errs(key string, errs []error) *LogWrap {
+	l.Event = l.Event.Errs(key, errs)
+	return l
+}
+
+// Err adds the field "error" with err as a string to the *Event context.
+// If err is nil, no field is added.
+// To customize the key name, change zerolog.ErrorFieldName.
+func (l *LogWrap) Err(err error) *LogWrap {
+	l.Event = l.Event.Err(err)
+	return l
+}
+
+// Bool adds the field key with val as a bool to the *Event context.
+func (l *LogWrap) Bool(key string, b bool) *LogWrap {
+	l.Event = l.Event.Bool(key, b)
+	return l
+}
+
+// Bools adds the field key with val as a []bool to the *Event context.
+func (l *LogWrap) Bools(key string, b []bool) *LogWrap {
+	l.Event = l.Event.Bools(key, b)
+	return l
+}
+
+// Int adds the field key with i as a int to the *Event context.
+func (l *LogWrap) Int(key string, i int) *LogWrap {
+	l.Event = l.Event.Int(key, i)
+	return l
+}
+
+// Ints adds the field key with i as a []int to the *Event context.
+func (l *LogWrap) Ints(key string, i []int) *LogWrap {
+	l.Event = l.Event.Ints(key, i)
+	return l
+}
+
+// Int8 adds the field key with i as a int8 to the *Event context.
+func (l *LogWrap) Int8(key string, i int8) *LogWrap {
+	l.Event = l.Event.Int8(key, i)
+	return l
+}
+
+// Ints8 adds the field key with i as a []int8 to the *Event context.
+func (l *LogWrap) Ints8(key string, i []int8) *LogWrap {
+	l.Event = l.Event.Ints8(key, i)
+	return l
+}
+
+// Int16 adds the field key with i as a int16 to the *Event context.
+func (l *LogWrap) Int16(key string, i int16) *LogWrap {
+	l.Event = l.Event.Int16(key, i)
+	return l
+}
+
+// Ints16 adds the field key with i as a []int16 to the *Event context.
+func (l *LogWrap) Ints16(key string, i []int16) *LogWrap {
+	l.Event = l.Event.Ints16(key, i)
+	return l
+}
+
+// Int32 adds the field key with i as a int32 to the *Event context.
+func (l *LogWrap) Int32(key string, i int32) *LogWrap {
+	l.Event = l.Event.Int32(key, i)
+	return l
+}
+
+// Ints32 adds the field key with i as a []int32 to the *Event context.
+func (l *LogWrap) Ints32(key string, i []int32) *LogWrap {
+	l.Event = l.Event.Ints32(key, i)
+	return l
+}
+
+// Int64 adds the field key with i as a int64 to the *Event context.
+func (l *LogWrap) Int64(key string, i int64) *LogWrap {
+	l.Event = l.Event.Int64(key, i)
+	return l
+}
+
+// Ints64 adds the field key with i as a []int64 to the *Event context.
+func (l *LogWrap) Ints64(key string, i []int64) *LogWrap {
+	l.Event = l.Event.Ints64(key, i)
+	return l
+}
+
+// Uint adds the field key with i as a uint to the *Event context.
+func (l *LogWrap) Uint(key string, i uint) *LogWrap {
+	l.Event = l.Event.Uint(key, i)
+	return l
+}
+
+// Uints adds the field key with i as a []int to the *Event context.
+func (l *LogWrap) Uints(key string, i []uint) *LogWrap {
+	l.Event = l.Event.Uints(key, i)
+	return l
+}
+
+// Uint8 adds the field key with i as a uint8 to the *Event context.
+func (l *LogWrap) Uint8(key string, i uint8) *LogWrap {
+	l.Event = l.Event.Uint8(key, i)
+	return l
+}
+
+// Uints8 adds the field key with i as a []int8 to the *Event context.
+func (l *LogWrap) Uints8(key string, i []uint8) *LogWrap {
+	l.Event = l.Event.Uints8(key, i)
+	return l
+}
+
+// Uint16 adds the field key with i as a uint16 to the *Event context.
+func (l *LogWrap) Uint16(key string, i uint16) *LogWrap {
+	l.Event = l.Event.Uint16(key, i)
+	return l
+}
+
+// Uints16 adds the field key with i as a []int16 to the *Event context.
+func (l *LogWrap) Uints16(key string, i []uint16) *LogWrap {
+	l.Event = l.Event.Uints16(key, i)
+	return l
+}
+
+// Uint32 adds the field key with i as a uint32 to the *Event context.
+func (l *LogWrap) Uint32(key string, i uint32) *LogWrap {
+	l.Event = l.Event.Uint32(key, i)
+	return l
+}
+
+// Uints32 adds the field key with i as a []int32 to the *Event context.
+func (l *LogWrap) Uints32(key string, i []uint32) *LogWrap {
+	l.Event = l.Event.Uints32(key, i)
+	return l
+}
+
+// Uint64 adds the field key with i as a uint64 to the *Event context.
+func (l *LogWrap) Uint64(key string, i uint64) *LogWrap {
+	l.Event = l.Event.Uint64(key, i)
+	return l
+}
+
+// Uints64 adds the field key with i as a []int64 to the *Event context.
+func (l *LogWrap) Uints64(key string, i []uint64) *LogWrap {
+	l.Event = l.Event.Uints64(key, i)
+	return l
+}
+
+// Float32 adds the field key with f as a float32 to the *Event context.
+func (l *LogWrap) Float32(key string, f float32) *LogWrap {
+	l.Event = l.Event.Float32(key, f)
+	return l
+}
+
+// Floats32 adds the field key with f as a []float32 to the *Event context.
+func (l *LogWrap) Floats32(key string, f []float32) *LogWrap {
+	l.Event = l.Event.Floats32(key, f)
+	return l
+}
+
+// Float64 adds the field key with f as a float64 to the *Event context.
+func (l *LogWrap) Float64(key string, f float64) *LogWrap {
+	l.Event = l.Event.Float64(key, f)
+	return l
+}
+
+// Floats64 adds the field key with f as a []float64 to the *Event context.
+func (l *LogWrap) Floats64(key string, f []float64) *LogWrap {
+	l.Event = l.Event.Floats64(key, f)
+	return l
+}
+
+// Timestamp adds the current local time as UNIX timestamp to the *Event context with the "time" key.
+// To customize the key name, change zerolog.TimestampFieldName.
+func (l *LogWrap) Timestamp() *LogWrap {
+	l.Event = l.Event.Timestamp()
+	return l
+}
+
+// Time adds the field key with t formated as string using zerolog.TimeFieldFormat.
+func (l *LogWrap) Time(key string, t time.Time) *LogWrap {
+	l.Event = l.Event.Time(key, t)
+	return l
+}
+
+// Times adds the field key with t formated as string using zerolog.TimeFieldFormat.
+func (l *LogWrap) Times(key string, t []time.Time) *LogWrap {
+	l.Event = l.Event.Times(key, t)
+	return l
+}
+
+// Dur adds the field key with duration d stored as zerolog.DurationFieldUnit.
+// If zerolog.DurationFieldInteger is true, durations are rendered as integer
+// instead of float.
+func (l *LogWrap) Dur(key string, d time.Duration) *LogWrap {
+	l.Event = l.Event.Dur(key, d)
+	return l
+}
+
+// Durs adds the field key with duration d stored as zerolog.DurationFieldUnit.
+// If zerolog.DurationFieldInteger is true, durations are rendered as integer
+// instead of float.
+func (l *LogWrap) Durs(key string, d []time.Duration) *LogWrap {
+	l.Event = l.Event.Durs(key, d)
+	return l
+}
+
+// TimeDiff adds the field key with positive duration between time t and start.
+// If time t is not greater than start, duration will be 0.
+// Duration format follows the same principle as Dur().
+func (l *LogWrap) TimeDiff(key string, t time.Time, start time.Time) *LogWrap {
+	l.Event = l.Event.TimeDiff(key, t, start)
+	return l
+}
+
+// Interface adds the field key with i marshaled using reflection.
+func (l *LogWrap) Interface(key string, i interface{}) *LogWrap {
+	l.Event = l.Event.Interface(key, i)
+	return l
+}
+
+// Debug starts a new log with debug level.
+func Debug() *LogWrap {
+	return &LogWrap{Event: zerolog.Dict(), Level: zerolog.DebugLevel}
+}
+
+// Info starts a new log with info level.
+func Info() *LogWrap {
+	return &LogWrap{Event: zerolog.Dict(), Level: zerolog.InfoLevel}
+}
+
+// Warn starts a new log with warn level.
+func Warn() *LogWrap {
+	return &LogWrap{Event: zerolog.Dict(), Level: zerolog.WarnLevel}
+}
+
+// Error starts a new log with error level.
+func Error() *LogWrap {
+	return &LogWrap{Event: zerolog.Dict(), Level: zerolog.ErrorLevel}
+}
+
+// Fatal starts a new log with fatal level.
+func Fatal() *LogWrap {
+	return &LogWrap{Event: zerolog.Dict(), Level: zerolog.FatalLevel}
+}
+
+// Panic starts a new log with panic level.
+func Panic() *LogWrap {
+	return &LogWrap{Event: zerolog.Dict(), Level: zerolog.PanicLevel}
+}
+
+// Msg sends the *LogWrap with msg added as the message field if not empty.
+//
+// NOTICE: once this method is called, the *LogWrap should be disposed.
+// Calling Msg twice can have unexpected result.
+func (l LogWrap) Msg(msg string) {
+	switch l.Level {
+	case zerolog.DebugLevel:
+		logger.Debug().Dict("fields", l.Event).Msg(msg)
+	case zerolog.InfoLevel:
+		logger.Info().Dict("fields", l.Event).Msg(msg)
+	case zerolog.WarnLevel:
+		logger.Warn().Dict("fields", l.Event).Msg(msg)
+	case zerolog.ErrorLevel:
+		logger.Error().Dict("fields", l.Event).Msg(msg)
+	case zerolog.FatalLevel:
+		logger.Fatal().Dict("fields", l.Event).Msg(msg)
+	case zerolog.PanicLevel:
+		logger.Panic().Dict("fields", l.Event).Msg(msg)
+	}
 }

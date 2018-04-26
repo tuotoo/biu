@@ -73,7 +73,7 @@ func ParseToken(token string) (*jwt.Token, error) {
 		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
 			signingErr := fmt.Errorf("unexpected signing method: %v",
 				token.Header["alg"])
-			Info("parse signing method", Log().Err(signingErr))
+			Info().Err(signingErr).Msg("parse signing method")
 			return nil, signingErr
 		}
 		return globalOptions.jwtSecret, nil
@@ -85,7 +85,7 @@ func ParseToken(token string) (*jwt.Token, error) {
 func RefreshToken(token string) (newToken string, err error) {
 	t, err := ParseToken(token)
 	if err != nil {
-		Info("parse token", Log().Err(err))
+		Info().Err(err).Msg("parse token")
 		return "", err
 	}
 	claims, ok := t.Claims.(jwt.MapClaims)
@@ -117,7 +117,7 @@ func RefreshToken(token string) (newToken string, err error) {
 func CheckToken(token string) (userID string, err error) {
 	t, err := ParseToken(token)
 	if err != nil {
-		Info("parse token", Log().Err(err))
+		Info().Err(err).Msg("parse token")
 		return "", err
 	}
 	claims, ok := t.Claims.(jwt.MapClaims)
@@ -137,7 +137,7 @@ func CheckToken(token string) (userID string, err error) {
 func (ctx *Ctx) IsLogin() (userID string, err error) {
 	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Request.Request)
 	if err != nil {
-		Info("no auth header", Log().Err(err))
+		Info().Err(err).Msg("no auth header")
 		return "", err
 	}
 	return CheckToken(tokenString)
