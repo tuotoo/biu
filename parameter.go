@@ -1,11 +1,10 @@
 package biu
 
 import (
+	"errors"
 	"math/big"
 	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // Parameter wrap parameter value in a request.

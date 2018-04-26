@@ -164,7 +164,7 @@ func (e errHandler) Handle(s errc.State, err error) error {
 		Str("routeSig", e.ctx.RouteSignature()).
 		Int("code", e.code).
 		Str("msg", msg).Str(zerolog.ErrorFieldName,
-		fmt.Sprintf("%+v", errors.WithStack(err))))
+		fmt.Sprintf("%+v\n", errors.WithStack(err))))
 	if e.code == 0 {
 		msg = err.Error()
 	}
