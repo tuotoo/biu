@@ -19,9 +19,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// nolint
-// MIME_HTML_FORM is application/x-www-form-urlencoded header
-const MIME_HTML_FORM = "application/x-www-form-urlencoded"
+const (
+	// MIME_HTML_FORM is application/x-www-form-urlencoded header
+	MIME_HTML_FORM = "application/x-www-form-urlencoded"
+	// MIME_FILE_FORM is multipart/form-data
+	MIME_FILE_FORM = "multipart/form-data"
+)
 
 var swaggerTags []spec.Tag
 
@@ -124,9 +127,7 @@ func addService(
 		// build web service
 		ws := new(restful.WebService)
 		path := prefix + "/" + v.NameSpace
-		ws.Path(path).
-			Consumes(restful.MIME_JSON).
-			Produces(restful.MIME_JSON)
+		ws.Path(path).Produces(restful.MIME_JSON)
 		for _, f := range filters {
 			ws.Filter(f)
 		}
@@ -149,11 +150,19 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			Info("routers", Log().
+			Info().
 				Str("path", r.Path).
-				Str("method", r.Method))
+				Str("method", r.Method).
+				Msg("routers")
 			if routes[ri].Metadata == nil {
 				routes[ri].Metadata = make(map[string]interface{})
+			}
+			if len(routes[ri].Consumes) == 0 {
+				if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
+					r.Consumes = []string{MIME_HTML_FORM}
+				} else {
+					r.Consumes = []string{restful.MIME_JSON}
+				}
 			}
 			routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
 		}
@@ -172,21 +181,21 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 		Handler: handler,
 	}
 	go func() {
-		Info("listening", Log().Str("addr", address))
-		Fatal("listening", Log().Err(server.ListenAndServe()))
+		Info().Str("addr", address).Msg("listening")
+		Fatal().Err(server.ListenAndServe()).Msg("listening")
 	}()
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	Info("signal receive", Log().Interface("ch", <-ch))
+	Info().Interface("ch", <-ch).Msg("signal receive")
 	if cfg != nil && cfg.BeforeShutDown != nil {
 		cfg.BeforeShutDown()
 	}
-	Info("shut down", Log().Err(server.Shutdown(context.TODO())))
+	Info().Err(server.Shutdown(context.TODO())).Msg("shut down")
 	if cfg != nil && cfg.AfterShutDown != nil {
 		cfg.AfterShutDown()
 	}
-	Info("server is down gracefully", Log())
+	Info().Msg("server is down gracefully")
 }
 
 // TestServer wraps a httptest.Server
