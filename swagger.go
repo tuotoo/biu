@@ -1,9 +1,7 @@
 package biu
 
 import (
-	"log"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/emicklei/go-restful"
@@ -22,26 +20,6 @@ func NewSwaggerService(info SwaggerInfo) *restful.WebService {
 	return newSwaggerService(info, http.DefaultServeMux)
 }
 
-func StripPrefix(prefix string, h http.Handler) http.Handler {
-	if prefix == "" {
-		return h
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("before:", r.URL.Path)
-		if p := strings.TrimPrefix(r.URL.Path, prefix); len(p) < len(r.URL.Path) {
-			log.Println("after:", p)
-			r2 := new(http.Request)
-			*r2 = *r
-			r2.URL = new(url.URL)
-			*r2.URL = *r.URL
-			r2.URL.Path = p
-			h.ServeHTTP(w, r2)
-		} else {
-			http.NotFound(w, r)
-		}
-	})
-}
-
 func newSwaggerService(
 	info SwaggerInfo,
 	serveMux *http.ServeMux,
@@ -54,7 +32,7 @@ func newSwaggerService(
 		PostBuildSwaggerObjectHandler: enrichSwaggerObject(info),
 	}
 	serveMux.Handle(info.RoutePrefix+"/swagger/",
-		StripPrefix(info.RoutePrefix, http.FileServer(swagger.FS(false))),
+		http.StripPrefix(info.RoutePrefix, http.FileServer(swagger.FS(false))),
 	)
 	return restfulspec.NewOpenAPIService(config)
 }
