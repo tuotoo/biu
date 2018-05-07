@@ -66,7 +66,11 @@ func Sign(userID string) (token string, err error) {
 		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
 		"iat": now.Unix(),
 	})
-	return jwtToken.SignedString(globalOptions.jwtSecret)
+	sec, err := globalOptions.jwtSecret(userID)
+	if err != nil {
+		return "", err
+	}
+	return jwtToken.SignedString(sec)
 }
 
 // ParseToken parse a token string.
@@ -123,7 +127,11 @@ func RefreshToken(token string) (newToken string, err error) {
 		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
 		"iat": iat,
 	})
-	return jwtToken.SignedString(globalOptions.jwtSecret)
+	sec, err := globalOptions.jwtSecret(uid)
+	if err != nil {
+		return "", err
+	}
+	return jwtToken.SignedString(sec)
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
