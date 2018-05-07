@@ -1,8 +1,6 @@
 package biu_test
 
 import (
-	"strconv"
-
 	"github.com/emicklei/go-restful"
 	"github.com/tuotoo/biu"
 )
@@ -15,6 +13,7 @@ func (ctl Foo) WebService(ws biu.WS) {
 	ws.Route(ws.GET("/").To(biu.Handle(ctl.getBar)).
 		Param(ws.QueryParameter("num", "number").DataType("integer")).
 		Doc("Get Bar").DefaultReturns("Bar", Bar{}), &biu.RouteOpt{
+		ID: "2F996F8F-9D08-4BE0-9D4D-ACB328D8F387",
 		Errors: map[int]string{
 			100: "num not Number",
 		},
@@ -32,11 +31,9 @@ type Bar struct {
 }
 
 func (ctl Foo) getBar(ctx biu.Ctx) {
-	numStr := ctx.QueryParameter("num")
-	num, err := strconv.Atoi(numStr)
-	if ctx.ContainsError(err, 100) {
-		return
-	}
+	num, err := ctx.Query("num").Int()
+	ctx.Must(err, 100)
+
 	ctx.ResponseJSON(Bar{Msg: "bar", Num: num})
 }
 

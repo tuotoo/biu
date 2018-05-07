@@ -12,11 +12,13 @@ import (
 
 var globalOptions = struct {
 	jwtTimeout        time.Duration
-	jwtSecret         []byte
+	jwtSecret         func(string) ([]byte, error)
 	jwtRefreshTimeout time.Duration
 }{
-	jwtTimeout:        time.Minute * 5,
-	jwtSecret:         []byte("secret"),
+	jwtTimeout: time.Minute * 5,
+	jwtSecret: func(userID string) (secret []byte, err error) {
+		return []byte("secret"), nil
+	},
 	jwtRefreshTimeout: time.Hour * 24 * 7,
 }
 
@@ -35,14 +37,14 @@ func (Setter) JWTTimeout(timeout time.Duration) Setter {
 }
 
 // JWTSecret sets secret for JWT.
-func JWTSecret(secret string) Setter {
-	globalOptions.jwtSecret = []byte(secret)
+func JWTSecret(f func(userID string) (secret []byte, err error)) Setter {
+	globalOptions.jwtSecret = f
 	return Setter{}
 }
 
 // JWTSecret sets secret for JWT.
-func (Setter) JWTSecret(secret string) Setter {
-	return JWTSecret(secret)
+func (Setter) JWTSecret(f func(userID string) (secret []byte, err error)) Setter {
+	return JWTSecret(f)
 }
 
 // JWTRefreshTimeout sets refresh timeout for JWT.
@@ -64,19 +66,34 @@ func Sign(userID string) (token string, err error) {
 		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
 		"iat": now.Unix(),
 	})
-	return jwtToken.SignedString(globalOptions.jwtSecret)
+	sec, err := globalOptions.jwtSecret(userID)
+	if err != nil {
+		return "", err
+	}
+	return jwtToken.SignedString(sec)
 }
 
 // ParseToken parse a token string.
 func ParseToken(token string) (*jwt.Token, error) {
 	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
-			signingErr := fmt.Errorf("unexpected signing method: %v",
-				token.Header["alg"])
+			signingErr := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			Info().Err(signingErr).Msg("parse signing method")
 			return nil, signingErr
 		}
-		return globalOptions.jwtSecret, nil
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			claimParseErr := fmt.Errorf("unexpected claims: %v", claims)
+			Info().Err(claimParseErr).Msg("parse token claims")
+			return nil, claimParseErr
+		}
+		uid, ok := claims["uid"].(string)
+		if !ok {
+			uidErr := fmt.Errorf("unexpected uid: %v", claims["uid"])
+			Info().Err(uidErr).Msg("parse uid in token")
+			return nil, uidErr
+		}
+		return globalOptions.jwtSecret(uid)
 	})
 }
 
@@ -110,7 +127,11 @@ func RefreshToken(token string) (newToken string, err error) {
 		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
 		"iat": iat,
 	})
-	return jwtToken.SignedString(globalOptions.jwtSecret)
+	sec, err := globalOptions.jwtSecret(uid)
+	if err != nil {
+		return "", err
+	}
+	return jwtToken.SignedString(sec)
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
@@ -123,7 +144,6 @@ func CheckToken(token string) (userID string, err error) {
 	claims, ok := t.Claims.(jwt.MapClaims)
 	if !ok || !t.Valid {
 		return "", errors.New("unexpected token")
-
 	}
 	uid, ok := claims["uid"].(string)
 	if !ok {

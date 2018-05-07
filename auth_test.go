@@ -11,7 +11,9 @@ import (
 
 func ExampleSign() {
 	biu.JWTTimeout(4 * time.Second).
-		JWTSecret("hello world").
+		JWTSecret(func(userID string) (secret []byte, err error) {
+			return []byte("hello world"), nil
+		}).
 		JWTRefreshTimeout(5 * time.Second)
 	token, _ := biu.Sign("user")
 	ctx := &biu.Ctx{
