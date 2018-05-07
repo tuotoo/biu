@@ -28,4 +28,4 @@ All our projects follow the [GitFlow branching model](http://nvie.com/posts/a-su
 - [errc](https://github.com/mpvl/errc)
 - [zerolog](https://github.com/rs/zerolog)
 - [httpexpect](https://github.com/gavv/httpexpect)
-- ...and many more open source Go Projects
+- ...and many more Open Source *Cool* Go Projects :star2:
