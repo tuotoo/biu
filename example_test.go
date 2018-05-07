@@ -10,10 +10,11 @@ type Foo struct{}
 
 // WebService implements CtlInterface
 func (ctl Foo) WebService(ws biu.WS) {
-	ws.Route(ws.GET("/").To(biu.Handle(ctl.getBar)).
+	ws.Route(ws.GET("/").Doc("Get Bar").
 		Param(ws.QueryParameter("num", "number").DataType("integer")).
-		Doc("Get Bar").DefaultReturns("Bar", Bar{}), &biu.RouteOpt{
+		DefaultReturns("Bar", Bar{}), &biu.RouteOpt{
 		ID: "2F996F8F-9D08-4BE0-9D4D-ACB328D8F387",
+		To: ctl.getBar,
 		Errors: map[int]string{
 			100: "num not Number",
 		},
