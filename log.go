@@ -36,7 +36,9 @@ var consoleBufPool = sync.Pool{
 	},
 }
 
-type ColorWriter struct{}
+type ColorWriter struct {
+	WithColor bool
+}
 
 func (w ColorWriter) Write(p []byte) (n int, err error) {
 	var event map[string]interface{}
@@ -49,12 +51,15 @@ func (w ColorWriter) Write(p []byte) (n int, err error) {
 	lvlColor := cReset
 	level := "????"
 	if l, ok := event[zerolog.LevelFieldName].(string); ok {
+		if w.WithColor {
+			lvlColor = levelColor(l)
+		}
 		level = strings.ToUpper(l)[0:4]
 	}
 	fmt.Fprintf(buf, "%s |%s| %s",
-		colorize(event[zerolog.TimestampFieldName], cDarkGray),
-		colorize(level, lvlColor),
-		colorize(event[zerolog.MessageFieldName], cReset))
+		colorize(event[zerolog.TimestampFieldName], cDarkGray, w.WithColor),
+		colorize(level, lvlColor, w.WithColor),
+		colorize(event[zerolog.MessageFieldName], cReset, w.WithColor))
 	fields := make([]string, 0, len(event))
 	for field := range event {
 		switch field {
@@ -65,7 +70,7 @@ func (w ColorWriter) Write(p []byte) (n int, err error) {
 	}
 	sort.Strings(fields)
 	for _, field := range fields {
-		fmt.Fprintf(buf, " %s: ", colorize(field, cCyan))
+		fmt.Fprintf(buf, " %s: ", colorize(field, cCyan, w.WithColor))
 		switch value := event[field].(type) {
 		case string:
 			if needsQuote(value) {
@@ -75,11 +80,11 @@ func (w ColorWriter) Write(p []byte) (n int, err error) {
 			}
 		case map[string]interface{}:
 			if len(value) == 0 {
-				fmt.Fprintf(buf, "%s", colorize("NONE", cMagenta))
+				fmt.Fprintf(buf, "%s", colorize("NONE", cMagenta, w.WithColor))
 				continue
 			}
 			for k, v := range value {
-				fmt.Fprintf(buf, "%s=", colorize(k, cYellow))
+				fmt.Fprintf(buf, "%s=", colorize(k, cYellow, w.WithColor))
 				fmt.Fprint(buf, v)
 				fmt.Fprint(buf, " ")
 			}
@@ -94,8 +99,26 @@ func (w ColorWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func colorize(s interface{}, color int) string {
-	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", color, s)
+func colorize(s interface{}, color int, withColor bool) string {
+	if withColor {
+		return fmt.Sprintf("\x1b[%dm%v\x1b[0m", color, s)
+	}
+	return fmt.Sprintf("%v", s)
+}
+
+func levelColor(level string) int {
+	switch level {
+	case "debug":
+		return cMagenta
+	case "info":
+		return cGreen
+	case "warn":
+		return cYellow
+	case "error", "fatal", "panic":
+		return cRed
+	default:
+		return cReset
+	}
 }
 
 func needsQuote(s string) bool {
@@ -108,7 +131,11 @@ func needsQuote(s string) bool {
 }
 
 func UseColorLogger() {
-	SetLoggerOutput(ColorWriter{})
+	SetLoggerOutput(ColorWriter{WithColor: true})
+}
+
+func UseConsoleLogger() {
+	SetLoggerOutput(ColorWriter{WithColor: false})
 }
 
 // SetLoggerOutput sets the output of logger.

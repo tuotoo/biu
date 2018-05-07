@@ -9,8 +9,8 @@ import (
 
 func ExampleLogger() {
 	biu.SetLoggerOutput(os.Stdout)
-	biu.Debug("hello", biu.Log())
+	biu.Debug().Msg("hello")
 	biu.SetLoggerLevel(zerolog.InfoLevel)
-	biu.Debug("hello", biu.Log())
-	biu.Info("hello", biu.Log().Int("int", 1))
+	biu.Debug().Msg("hello")
+	biu.Info().Int("int", 1).Msg("hello")
 }
