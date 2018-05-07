@@ -78,5 +78,4 @@ func ExampleSign() {
 	// true
 	// true
 	// true
-
 }

@@ -259,8 +259,7 @@ func LogFilter() restful.FilterFunction {
 }
 
 func init() {
-	restful.RegisterEntityAccessor(restful.MIME_JSON,
-		newJsoniterEntityAccessor())
+	restful.RegisterEntityAccessor(restful.MIME_JSON, newJsoniterEntityAccessor())
 }
 
 func newJsoniterEntityAccessor() restful.EntityReaderWriter {

@@ -13,7 +13,8 @@ import (
 func TestCtx_Must(t *testing.T) {
 	var tmpValue int
 	ws := biu.WS{WebService: &restful.WebService{}}
-	ws.Route(ws.GET("/{id}"), &biu.RouteOpt{
+	ws.Route(ws.GET("/must/{id}"), &biu.RouteOpt{
+		ID: "1226BE98-98EB-44D9-95BA-BC82E320C1BA",
 		To: func(ctx biu.Ctx) {
 			i := ctx.Path("id").IntDefault(1)
 			switch i {
@@ -43,19 +44,19 @@ func TestCtx_Must(t *testing.T) {
 	s := httptest.NewServer(c)
 	defer s.Close()
 	biu.UseConsoleLogger()
-	httpexpect.New(t, s.URL).GET("/1").Expect().JSON().Object().
+	httpexpect.New(t, s.URL).GET("/must/1").Expect().JSON().Object().
 		ValueEqual("code", 1).ValueEqual("message", "normal err")
-	httpexpect.New(t, s.URL).GET("/2").Expect().JSON().Object().
+	httpexpect.New(t, s.URL).GET("/must/2").Expect().JSON().Object().
 		ValueEqual("code", 2).ValueEqual("message", "with arg OK")
 	if tmpValue != 0 {
 		t.Errorf("expect func ok %d but got %d", 0, tmpValue)
 	}
-	httpexpect.New(t, s.URL).GET("/3").Expect().JSON().Object().
+	httpexpect.New(t, s.URL).GET("/must/3").Expect().JSON().Object().
 		ValueEqual("code", 3).ValueEqual("message", "with func")
 	if tmpValue != 1 {
 		t.Errorf("expect func ok %d but got %d", 1, tmpValue)
 	}
-	httpexpect.New(t, s.URL).GET("/4").Expect().JSON().Object().
+	httpexpect.New(t, s.URL).GET("/must/4").Expect().JSON().Object().
 		ValueEqual("code", 4).ValueEqual("message", "with func and arg OK")
 	if tmpValue != 2 {
 		t.Errorf("expect func ok %d but got %d", 2, tmpValue)
