@@ -157,6 +157,10 @@ type errHandler struct {
 func (e errHandler) Handle(s errc.State, err error) error {
 	msg := e.ctx.ErrMsg(e.code)
 	if len(e.v) > 0 {
+		if f, ok := e.v[0].(func()); ok {
+			f()
+			e.v = e.v[1:]
+		}
 		msg = fmt.Sprintf(msg, e.v...)
 	}
 	Info().
