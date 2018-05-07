@@ -38,7 +38,7 @@ func TestCtx_Must(t *testing.T) {
 			4: "with func and arg %s",
 		},
 	})
-	c := restful.NewContainer()
+	c := biu.New()
 	c.Add(ws.WebService)
 	s := httptest.NewServer(c)
 	defer s.Close()
