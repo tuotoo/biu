@@ -26,7 +26,7 @@ const (
 	MIME_FILE_FORM = "multipart/form-data"
 )
 
-var swaggerTags []spec.Tag
+var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
 
 type GlobalServiceOpt struct {
 	Filters []restful.FilterFunction
@@ -154,7 +154,7 @@ func addService(
 				URL:         v.ExternalURL,
 			}
 		}
-		swaggerTags = append(swaggerTags, spec.Tag{
+		swaggerTags[container.ServeMux] = append(swaggerTags[container.ServeMux], spec.Tag{
 			TagProps: tagProps,
 		})
 		routes := ws.Routes()
