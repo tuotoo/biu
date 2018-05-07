@@ -18,3 +18,14 @@ a set of toolkits for [go-restful](https://github.com/emicklei/go-restful).
 ## Contributing
 
 All our projects follow the [GitFlow branching model](http://nvie.com/posts/a-successful-git-branching-model/), from development to release. If you are not familiar with it, there are several guides and tutorials to make you understand what it is about.
+
+## Thanks
+
+- [go-restful](https://github.com/emicklei/go-restful)
+- [jwt-go](https://github.com/dgrijalva/jwt-go)
+- [Gin](https://github.com/gin-gonic/gin)
+- [json-iterator](https://github.com/json-iterator/go)
+- [errc](https://github.com/mpvl/errc)
+- [zerolog](https://github.com/rs/zerolog)
+- [httpexpect](https://github.com/gavv/httpexpect)
+- ...and many more open source Go Projects
