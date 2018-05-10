@@ -26,7 +26,12 @@ const (
 	MIME_FILE_FORM = "multipart/form-data"
 )
 
-var swaggerTags []spec.Tag
+var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
+
+type GlobalServiceOpt struct {
+	Filters []restful.FilterFunction
+	Errors  map[int]string
+}
 
 // Container of restful
 type Container struct{ *restful.Container }
@@ -37,15 +42,13 @@ func New() Container {
 }
 
 // AddServices adds services with namespace for container.
-func (c *Container) AddServices(prefix string,
-	filters []restful.FilterFunction, wss ...NS,
-) {
-	addService(prefix, filters, c.Container, wss...)
+func (c *Container) AddServices(prefix string, opt *GlobalServiceOpt, wss ...NS) {
+	addService(prefix, opt, c.Container, wss...)
 }
 
 // AddServices adds services with namespace.
-func AddServices(prefix string, filters []restful.FilterFunction, wss ...NS) {
-	addService(prefix, filters, restful.DefaultContainer, wss...)
+func AddServices(prefix string, opt *GlobalServiceOpt, wss ...NS) {
+	addService(prefix, opt, restful.DefaultContainer, wss...)
 }
 
 // RunConfig is the running config of container.
@@ -65,8 +68,9 @@ func Run(addr string, cfg *RunConfig) {
 }
 
 var (
-	routeIDMap  = make(map[string]string)
-	routeErrMap = make(map[string]map[int]string)
+	routeIDMap   = make(map[string]string)
+	routeErrMap  = make(map[string]map[int]string)
+	globalErrMap = make(map[int]string)
 )
 
 // RouteOpt contains some options of route.
@@ -119,7 +123,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 
 func addService(
 	prefix string,
-	filters []restful.FilterFunction,
+	opt *GlobalServiceOpt,
 	container *restful.Container,
 	wss ...NS,
 ) {
@@ -128,8 +132,13 @@ func addService(
 		ws := new(restful.WebService)
 		path := prefix + "/" + v.NameSpace
 		ws.Path(path).Produces(restful.MIME_JSON)
-		for _, f := range filters {
-			ws.Filter(f)
+		if opt != nil {
+			for _, f := range opt.Filters {
+				ws.Filter(f)
+			}
+			for k, v := range opt.Errors {
+				globalErrMap[k] = v
+			}
 		}
 		v.Controller.WebService(WS{WebService: ws})
 		container.Add(ws)
@@ -145,7 +154,7 @@ func addService(
 				URL:         v.ExternalURL,
 			}
 		}
-		swaggerTags = append(swaggerTags, spec.Tag{
+		swaggerTags[container.ServeMux] = append(swaggerTags[container.ServeMux], spec.Tag{
 			TagProps: tagProps,
 		})
 		routes := ws.Routes()
@@ -250,8 +259,7 @@ func LogFilter() restful.FilterFunction {
 }
 
 func init() {
-	restful.RegisterEntityAccessor(restful.MIME_JSON,
-		newJsoniterEntityAccessor())
+	restful.RegisterEntityAccessor(restful.MIME_JSON, newJsoniterEntityAccessor())
 }
 
 func newJsoniterEntityAccessor() restful.EntityReaderWriter {

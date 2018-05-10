@@ -116,7 +116,11 @@ func (ctx *Ctx) RouteSignature() string {
 
 // ErrMsg returns the message of a error code in current route.
 func (ctx *Ctx) ErrMsg(code int) string {
-	return routeErrMap[ctx.RouteSignature()][code]
+	msg, ok := routeErrMap[ctx.RouteSignature()][code]
+	if ok {
+		return msg
+	}
+	return globalErrMap[code]
 }
 
 // Redirect replies to the request with a redirect to url.
@@ -157,6 +161,10 @@ type errHandler struct {
 func (e errHandler) Handle(s errc.State, err error) error {
 	msg := e.ctx.ErrMsg(e.code)
 	if len(e.v) > 0 {
+		if f, ok := e.v[0].(func()); ok {
+			f()
+			e.v = e.v[1:]
+		}
 		msg = fmt.Sprintf(msg, e.v...)
 	}
 	Info().
@@ -327,7 +335,10 @@ func ResponseError(w http.ResponseWriter, routeID string, msg string, code int) 
 // else it will log the error, make a CommonResp response and return true.
 // if code is 0, it will use err.Error() as CommonResp.message.
 func ContainsError(w http.ResponseWriter, RouteSignature string, err error, code int) bool {
-	msg := routeErrMap[RouteSignature][code]
+	msg, ok := routeErrMap[RouteSignature][code]
+	if !ok {
+		msg = globalErrMap[code]
+	}
 	if CheckError(err, Info().Int("code", code).Str("msg", msg)) {
 		return false
 	}
