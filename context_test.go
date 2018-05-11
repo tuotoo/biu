@@ -27,9 +27,9 @@ func TestCtx_Must(t *testing.T) {
 					tmpValue = 1
 				})
 			case 4:
-				ctx.Must(errors.New("4"), 4, func() {
+				ctx.Must(errors.New("4"), 4, "OK", func() {
 					tmpValue = 2
-				}, "OK")
+				})
 			}
 		},
 		Errors: map[int]string{
