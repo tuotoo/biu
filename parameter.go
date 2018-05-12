@@ -44,7 +44,7 @@ func (p Parameter) BoolArray() ([]bool, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseBool(v)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = m
 	}
@@ -83,7 +83,7 @@ func (p Parameter) Float32Array() ([]float32, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseFloat(v, 32)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = float32(m)
 	}
@@ -121,7 +121,7 @@ func (p Parameter) Float64Array() ([]float64, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = m
 	}
@@ -160,7 +160,7 @@ func (p Parameter) IntArray() ([]int, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = int(m)
 	}
@@ -199,7 +199,7 @@ func (p Parameter) Int8Array() ([]int8, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseInt(v, 10, 8)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = int8(m)
 	}
@@ -238,7 +238,7 @@ func (p Parameter) Int16Array() ([]int16, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseInt(v, 10, 16)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = int16(m)
 	}
@@ -277,7 +277,7 @@ func (p Parameter) Int32Array() ([]int32, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = int32(m)
 	}
@@ -328,7 +328,7 @@ func (p Parameter) Int64Array() ([]int64, error) {
 	for i, v := range p.Value {
 		m, err := strToInt64(v)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = m
 	}
@@ -367,7 +367,7 @@ func (p Parameter) UintArray() ([]uint, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = uint(m)
 	}
@@ -406,7 +406,7 @@ func (p Parameter) Uint8Array() ([]uint8, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseUint(v, 10, 8)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = uint8(m)
 	}
@@ -445,7 +445,7 @@ func (p Parameter) Uint16Array() ([]uint16, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseUint(v, 10, 16)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = uint16(m)
 	}
@@ -484,7 +484,7 @@ func (p Parameter) Uint32Array() ([]uint32, error) {
 	for i, v := range p.Value {
 		m, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = uint32(m)
 	}
@@ -535,7 +535,7 @@ func (p Parameter) Uint64Array() ([]uint64, error) {
 	for i, v := range p.Value {
 		m, err := strToUint64(v)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = m
 	}
@@ -603,7 +603,7 @@ func (p Parameter) TimeArray(layout string) ([]time.Time, error) {
 	for i, v := range p.Value {
 		m, err := time.Parse(layout, v)
 		if err != nil {
-			return rst, err
+			return nil, err
 		}
 		rst[i] = m
 	}

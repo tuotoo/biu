@@ -36,10 +36,12 @@ var consoleBufPool = sync.Pool{
 	},
 }
 
+// ColorWriter is a writer for writing pretty log to console
 type ColorWriter struct {
 	WithColor bool
 }
 
+// Write implements io.Writer
 func (w ColorWriter) Write(p []byte) (n int, err error) {
 	var event map[string]interface{}
 	err = jsoniter.Unmarshal(p, &event)
@@ -130,10 +132,12 @@ func needsQuote(s string) bool {
 	return false
 }
 
+// UseColorLogger will writes the logs to stderr with colorful pretty format.
 func UseColorLogger() {
 	SetLoggerOutput(ColorWriter{WithColor: true})
 }
 
+// UseConsoleLogger will writes the logs to stderr with pretty format without color.
 func UseConsoleLogger() {
 	SetLoggerOutput(ColorWriter{WithColor: false})
 }
