@@ -73,13 +73,16 @@ var (
 	globalErrMap = make(map[int]string)
 )
 
+// RouteErrors is a errors map for routes
+type RouteErrors map[int]string
+
 // RouteOpt contains some options of route.
 type RouteOpt struct {
 	ID              string
 	To              func(ctx Ctx)
 	Auth            bool
 	NeedPermissions []string
-	Errors          map[int]string
+	Errors          RouteErrors
 }
 
 // Route creates a new Route using the RouteBuilder
