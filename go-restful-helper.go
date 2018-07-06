@@ -95,6 +95,9 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 			}
 		}
 		elm := reflect.ValueOf(builder).Elem()
+		if elm.FieldByName("function").IsNil() {
+			builder = builder.To(func(_ *restful.Request, _ *restful.Response) {})
+		}
 		p1 := elm.FieldByName("rootPath").String()
 		p2 := elm.FieldByName("currentPath").String()
 		path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
