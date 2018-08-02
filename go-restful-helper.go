@@ -2,6 +2,7 @@ package biu
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
@@ -185,20 +187,61 @@ func addService(
 	}
 }
 
-func run(addr string, handler http.Handler, cfg *RunConfig) {
-	address := addr
-	hostAndPort := strings.Split(addr, ":")
-	if len(hostAndPort) == 0 || (len(hostAndPort) > 1 && hostAndPort[1] == "") {
-		address = ":8080"
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by ListenAndServe and ListenAndServeTLS so
+// dead TCP connections (e.g. closing laptop mid-download) eventually
+// go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return nil, err
 	}
-	server := http.Server{
-		Addr:    address,
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
+}
+
+// ListenAndServe listens on the TCP network address srv.Addr and then
+// calls Serve to handle requests on incoming connections.
+// Accepted connections are configured to enable TCP keep-alives.
+// If srv.Addr is blank, ":http" is used.
+// ListenAndServe always returns a non-nil error.
+func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
+	addr := srv.Addr
+	if addr == "" {
+		addr = ":0"
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	tcpListener := ln.(*net.TCPListener)
+	{
+		addr := tcpListener.Addr()
+		addrChan <- addr.String()
+	}
+	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
+}
+
+func run(addr string, handler http.Handler, cfg *RunConfig) {
+	server := &http.Server{
+		Addr:    addr,
 		Handler: handler,
 	}
+	addrChan := make(chan string)
 	go func() {
-		Info().Str("addr", address).Msg("listening")
-		Fatal().Err(server.ListenAndServe()).Msg("listening")
+		Fatal().Err(ListenAndServe(server, addrChan)).Msg("listening")
 	}()
+	select {
+	case addr := <-addrChan:
+		Info().Str("addr", addr).Msg("listening")
+	case <-time.After(time.Second):
+		Fatal().Msg("something went wrong when starting the server")
+	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
