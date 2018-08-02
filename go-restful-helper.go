@@ -206,11 +206,11 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 	if cfg != nil && cfg.BeforeShutDown != nil {
 		cfg.BeforeShutDown()
 	}
-	Info().Err(server.Shutdown(context.TODO())).Msg("shut down")
+	Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
 	if cfg != nil && cfg.AfterShutDown != nil {
 		cfg.AfterShutDown()
 	}
-	Info().Msg("server is down gracefully")
+	Info().Msg("server shuts down gracefully")
 }
 
 // TestServer wraps a httptest.Server
@@ -253,6 +253,7 @@ func LogFilter() restful.FilterFunction {
 		resp *restful.Response,
 		chain *restful.FilterChain,
 	) {
+		start := time.Now()
 		chain.ProcessFilter(req, resp)
 		logger.Info().Dict("fields", zerolog.Dict().
 			Str("remote_addr", strings.Split(req.Request.RemoteAddr, ":")[0]).
@@ -260,6 +261,7 @@ func LogFilter() restful.FilterFunction {
 			Str("uri", req.Request.URL.RequestURI()).
 			Str("proto", req.Request.Proto).
 			Int("status_code", resp.StatusCode()).
+			Dur("dur", time.Since(start)).
 			Int("content_length", resp.ContentLength())).Msg("req")
 	}
 }
