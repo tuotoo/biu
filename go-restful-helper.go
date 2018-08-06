@@ -2,6 +2,7 @@ package biu
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,12 +11,12 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
-	"github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 )
 
@@ -73,13 +74,16 @@ var (
 	globalErrMap = make(map[int]string)
 )
 
+// RouteErrors is a errors map for routes
+type RouteErrors map[int]string
+
 // RouteOpt contains some options of route.
 type RouteOpt struct {
 	ID              string
 	To              func(ctx Ctx)
 	Auth            bool
 	NeedPermissions []string
-	Errors          map[int]string
+	Errors          RouteErrors
 }
 
 // Route creates a new Route using the RouteBuilder
@@ -95,6 +99,9 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 			}
 		}
 		elm := reflect.ValueOf(builder).Elem()
+		if elm.FieldByName("function").IsNil() {
+			builder = builder.To(func(_ *restful.Request, _ *restful.Response) {})
+		}
 		p1 := elm.FieldByName("rootPath").String()
 		p2 := elm.FieldByName("currentPath").String()
 		path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
@@ -179,20 +186,61 @@ func addService(
 	}
 }
 
-func run(addr string, handler http.Handler, cfg *RunConfig) {
-	address := addr
-	hostAndPort := strings.Split(addr, ":")
-	if len(hostAndPort) == 0 || (len(hostAndPort) > 1 && hostAndPort[1] == "") {
-		address = ":8080"
+// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
+// connections. It's used by ListenAndServe and ListenAndServeTLS so
+// dead TCP connections (e.g. closing laptop mid-download) eventually
+// go away.
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return nil, err
 	}
-	server := http.Server{
-		Addr:    address,
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
+}
+
+// ListenAndServe listens on the TCP network address srv.Addr and then
+// calls Serve to handle requests on incoming connections.
+// Accepted connections are configured to enable TCP keep-alives.
+// If srv.Addr is blank, ":http" is used.
+// ListenAndServe always returns a non-nil error.
+func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
+	addr := srv.Addr
+	if addr == "" {
+		addr = ":0"
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	tcpListener := ln.(*net.TCPListener)
+	{
+		addr := tcpListener.Addr()
+		addrChan <- addr.String()
+	}
+	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
+}
+
+func run(addr string, handler http.Handler, cfg *RunConfig) {
+	server := &http.Server{
+		Addr:    addr,
 		Handler: handler,
 	}
+	addrChan := make(chan string)
 	go func() {
-		Info().Str("addr", address).Msg("listening")
-		Fatal().Err(server.ListenAndServe()).Msg("listening")
+		Fatal().Err(ListenAndServe(server, addrChan)).Msg("listening")
 	}()
+	select {
+	case addr := <-addrChan:
+		Info().Str("addr", addr).Msg("listening")
+	case <-time.After(time.Second):
+		Fatal().Msg("something went wrong when starting the server")
+	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
@@ -200,11 +248,11 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 	if cfg != nil && cfg.BeforeShutDown != nil {
 		cfg.BeforeShutDown()
 	}
-	Info().Err(server.Shutdown(context.TODO())).Msg("shut down")
+	Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
 	if cfg != nil && cfg.AfterShutDown != nil {
 		cfg.AfterShutDown()
 	}
-	Info().Msg("server is down gracefully")
+	Info().Msg("server shuts down gracefully")
 }
 
 // TestServer wraps a httptest.Server
@@ -247,6 +295,7 @@ func LogFilter() restful.FilterFunction {
 		resp *restful.Response,
 		chain *restful.FilterChain,
 	) {
+		start := time.Now()
 		chain.ProcessFilter(req, resp)
 		logger.Info().Dict("fields", zerolog.Dict().
 			Str("remote_addr", strings.Split(req.Request.RemoteAddr, ":")[0]).
@@ -254,33 +303,7 @@ func LogFilter() restful.FilterFunction {
 			Str("uri", req.Request.URL.RequestURI()).
 			Str("proto", req.Request.Proto).
 			Int("status_code", resp.StatusCode()).
+			Dur("dur", time.Since(start)).
 			Int("content_length", resp.ContentLength())).Msg("req")
 	}
-}
-
-func init() {
-	restful.RegisterEntityAccessor(restful.MIME_JSON, newJsoniterEntityAccessor())
-}
-
-func newJsoniterEntityAccessor() restful.EntityReaderWriter {
-	return jsoniterEntityAccess{}
-}
-
-type jsoniterEntityAccess struct{}
-
-// Read unmarshalls the value from JSON using jsoniter.
-func (jsoniterEntityAccess) Read(req *restful.Request, v interface{}) error {
-	decoder := jsoniter.NewDecoder(req.Request.Body)
-	decoder.UseNumber()
-	return decoder.Decode(v)
-}
-
-// Write marshalls the value to JSON using jsoniter
-// and set the Content-Type Header.
-func (j jsoniterEntityAccess) Write(
-	resp *restful.Response,
-	status int,
-	v interface{},
-) error {
-	return writeJSON(resp, status, v)
 }

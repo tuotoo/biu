@@ -475,3 +475,7 @@ func (l LogWrap) Msg(msg string) {
 		logger.Panic().Dict("fields", l.Event).Msg(msg)
 	}
 }
+
+func (l LogWrap) Msgf(format string, v ...interface{}) {
+	l.Msg(fmt.Sprintf(format, v...))
+}

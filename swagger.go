@@ -2,6 +2,7 @@ package biu
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/emicklei/go-restful"
@@ -24,15 +25,32 @@ func newSwaggerService(
 	info SwaggerInfo,
 	container *restful.Container,
 ) *restful.WebService {
+	if info.RouteSuffix == "" {
+		info.RouteSuffix = "swagger"
+	}
+	info.RoutePrefix = "/" + strings.Trim(info.RoutePrefix, "/")
+	info.RouteSuffix = "/" + strings.Trim(info.RouteSuffix, "/")
 	config := restfulspec.Config{
 		WebServices:                   container.RegisteredWebServices(),
-		APIPath:                       info.RoutePrefix + "/swagger.json",
+		APIPath:                       info.RoutePrefix + info.RouteSuffix + ".json",
 		DisableCORS:                   info.DisableCORS,
 		WebServicesURL:                info.WebServicesURL,
 		PostBuildSwaggerObjectHandler: enrichSwaggerObject(info, container.ServeMux),
 	}
-	container.ServeMux.Handle(info.RoutePrefix+"/swagger/",
-		http.StripPrefix(info.RoutePrefix, http.FileServer(swagger.FS(false))),
+	route := info.RoutePrefix + info.RouteSuffix
+	container.ServeMux.Handle(route+"/",
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if p := strings.TrimPrefix(r.URL.Path, route); len(p) < len(r.URL.Path) {
+				r2 := new(http.Request)
+				*r2 = *r
+				r2.URL = new(url.URL)
+				*r2.URL = *r.URL
+				r2.URL.Path = "swagger" + p
+				http.FileServer(swagger.FS(false)).ServeHTTP(w, r2)
+			} else {
+				http.NotFound(w, r)
+			}
+		}),
 	)
 	return restfulspec.NewOpenAPIService(config)
 }
