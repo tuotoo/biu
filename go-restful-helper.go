@@ -8,10 +8,12 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+	_ "unsafe"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
@@ -26,6 +28,18 @@ const (
 	// MIME_FILE_FORM is multipart/form-data
 	MIME_FILE_FORM = "multipart/form-data"
 )
+
+type pathExpression struct {
+	LiteralCount int      // the number of literal characters (means those not resulting from template variable substitution)
+	VarNames     []string // the names of parameters (enclosed by {}) in the path
+	VarCount     int      // the number of named parameters (enclosed by {}) in the path
+	Matcher      *regexp.Regexp
+	Source       string // Path as defined by the RouteBuilder
+	tokens       []string
+}
+
+//go:linkname newPathExpression github.com/emicklei/go-restful.newPathExpression
+func newPathExpression(path string) (*pathExpression, error)
 
 var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
 
@@ -107,6 +121,15 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 		path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
 		method := elm.FieldByName("httpMethod").String()
 		mapKey := path + " " + method
+
+		exp, err := newPathExpression(p2)
+		if err != nil {
+			Fatal().Err(err).Str("path", p2).Msg("invalid path")
+		}
+		for _, v := range exp.VarNames {
+			builder = builder.Param(ws.PathParameter(v, v))
+		}
+
 		if opt.ID != "" {
 			routeIDMap[mapKey] = opt.ID
 		}
@@ -166,8 +189,7 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			Info().
-				Str("path", r.Path).
+			Info().Str("path", r.Path).
 				Str("method", r.Method).
 				Msg("routers")
 			if routes[ri].Metadata == nil {
