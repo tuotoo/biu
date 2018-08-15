@@ -93,11 +93,13 @@ type RouteErrors map[int]string
 
 // RouteOpt contains some options of route.
 type RouteOpt struct {
-	ID              string
-	To              func(ctx Ctx)
-	Auth            bool
-	NeedPermissions []string
-	Errors          RouteErrors
+	ID                 string
+	To                 func(ctx Ctx)
+	Auth               bool
+	NeedPermissions    []string
+	Errors             RouteErrors
+	DisableAutoPathDoc bool
+	ExtraPathDocs      []string
 }
 
 // Route creates a new Route using the RouteBuilder
@@ -122,12 +124,18 @@ func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
 		method := elm.FieldByName("httpMethod").String()
 		mapKey := path + " " + method
 
-		exp, err := newPathExpression(p2)
-		if err != nil {
-			Fatal().Err(err).Str("path", p2).Msg("invalid path")
-		}
-		for _, v := range exp.VarNames {
-			builder = builder.Param(ws.PathParameter(v, v))
+		if globalOptions.autoGenPathDoc && !opt.DisableAutoPathDoc {
+			exp, err := newPathExpression(p2)
+			if err != nil {
+				Fatal().Err(err).Str("path", p2).Msg("invalid path")
+			}
+			for i, v := range exp.VarNames {
+				desc := v
+				if len(opt.ExtraPathDocs) > i {
+					desc = opt.ExtraPathDocs[i]
+				}
+				builder = builder.Param(ws.PathParameter(v, desc))
+			}
 		}
 
 		if opt.ID != "" {
