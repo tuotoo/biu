@@ -153,8 +153,8 @@ func (e errHandler) Handle(s errc.State, err error) error {
 		Str("routeID", e.ctx.RouteID()).
 		Str("routeSig", e.ctx.RouteSignature()).
 		Int("code", e.code).
-		Str("msg", msg).Str(zerolog.ErrorFieldName,
-		fmt.Sprintf("%+v\n", errors.WithStack(err))).
+		Str("msg", msg).
+		Str(zerolog.ErrorFieldName, fmt.Sprintf("%+v\n", err)).
 		Msg("verify error")
 	if e.code == 0 {
 		msg = err.Error()
