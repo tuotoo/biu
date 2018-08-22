@@ -13,6 +13,8 @@ type Parameter struct {
 	error
 }
 
+var ErrParamIsEmpty = errors.New("parameter is empty")
+
 // Bool converts a parameter value to bool.
 func (p Parameter) Bool() (bool, error) {
 	var zeroVal bool
@@ -22,7 +24,7 @@ func (p Parameter) Bool() (bool, error) {
 	if len(p.Value) > 0 {
 		return strconv.ParseBool(p.Value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // BoolDefault converts a parameter value to bool with default value.
@@ -61,7 +63,7 @@ func (p Parameter) Float32() (float32, error) {
 		v, err := strconv.ParseFloat(p.Value[0], 32)
 		return float32(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Float32Default converts a parameter value to float32 with default value.
@@ -99,7 +101,7 @@ func (p Parameter) Float64() (float64, error) {
 	if len(p.Value) > 0 {
 		return strconv.ParseFloat(p.Value[0], 64)
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Float64Default converts a parameter value to float64 with default value.
@@ -138,7 +140,7 @@ func (p Parameter) Int() (int, error) {
 		v, err := strconv.ParseInt(p.Value[0], 10, 32)
 		return int(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // IntDefault converts a parameter value to int with default value.
@@ -177,7 +179,7 @@ func (p Parameter) Int8() (int8, error) {
 		v, err := strconv.ParseInt(p.Value[0], 10, 8)
 		return int8(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int8Default converts a parameter value to int8 with default value.
@@ -216,7 +218,7 @@ func (p Parameter) Int16() (int16, error) {
 		v, err := strconv.ParseInt(p.Value[0], 10, 16)
 		return int16(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int16Default converts a parameter value to int16 with default value.
@@ -255,7 +257,7 @@ func (p Parameter) Int32() (int32, error) {
 		v, err := strconv.ParseInt(p.Value[0], 10, 32)
 		return int32(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int32Default converts a parameter value to int32 with default value.
@@ -306,7 +308,7 @@ func (p Parameter) Int64() (int64, error) {
 	if len(p.Value) > 0 {
 		return strToInt64(p.Value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int64Default converts a parameter value to int64 with default value.
@@ -345,7 +347,7 @@ func (p Parameter) Uint() (uint, error) {
 		v, err := strconv.ParseUint(p.Value[0], 10, 32)
 		return uint(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // UintDefault converts a parameter value to uint with default value.
@@ -384,7 +386,7 @@ func (p Parameter) Uint8() (uint8, error) {
 		v, err := strconv.ParseUint(p.Value[0], 10, 8)
 		return uint8(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint8Default converts a parameter value to uint8 with default value.
@@ -423,7 +425,7 @@ func (p Parameter) Uint16() (uint16, error) {
 		v, err := strconv.ParseUint(p.Value[0], 10, 16)
 		return uint16(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint16Default converts a parameter value to uint16 with default value.
@@ -462,7 +464,7 @@ func (p Parameter) Uint32() (uint32, error) {
 		v, err := strconv.ParseUint(p.Value[0], 10, 32)
 		return uint32(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint32Default converts a parameter value to uint32 with default value.
@@ -513,7 +515,7 @@ func (p Parameter) Uint64() (uint64, error) {
 	if len(p.Value) > 0 {
 		return strToUint64(p.Value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint64Default converts a parameter value to uint64 with default value.
@@ -551,7 +553,7 @@ func (p Parameter) String() (string, error) {
 	if len(p.Value) > 0 {
 		return p.Value[0], nil
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // StringDefault converts a parameter value to string with default value.
@@ -572,6 +574,26 @@ func (p Parameter) StringArray() ([]string, error) {
 	return p.Value, nil
 }
 
+// Bytes converts a parameter value to bytes.
+func (p Parameter) Bytes() ([]byte, error) {
+	if p.error != nil {
+		return nil, p.error
+	}
+	if len(p.Value) > 0 {
+		return []byte(p.Value[0]), nil
+	}
+	return nil, ErrParamIsEmpty
+}
+
+// BytesDefault converts a parameter value to bytes with default value.
+func (p Parameter) BytesDefault(defaultValue []byte) []byte {
+	rst, err := p.Bytes()
+	if err != nil {
+		return defaultValue
+	}
+	return rst
+}
+
 // Time parse a parameter value to time.Time with given layout.
 func (p Parameter) Time(layout string) (time.Time, error) {
 	var zeroVal time.Time
@@ -581,7 +603,7 @@ func (p Parameter) Time(layout string) (time.Time, error) {
 	if len(p.Value) > 0 {
 		return time.Parse(layout, p.Value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // TimeDefault parse a parameter value to time.Time with given layout with default value.

@@ -236,3 +236,76 @@ func TestParameter_BoolArray(t *testing.T) {
 		})
 	}
 }
+
+func TestParameter_Bytes(t *testing.T) {
+	type fields struct {
+		Value []string
+		error error
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    []byte
+		wantErr bool
+	}{
+		{
+			fields: struct {
+				Value []string
+				error error
+			}{Value: []string{"1"}},
+			want:    []byte("1"),
+			wantErr: false,
+		},
+		{
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := Parameter{
+				Value: tt.fields.Value,
+				error: tt.fields.error,
+			}
+			got, err := p.Bytes()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parameter.Bytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parameter.Bytes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParameter_BytesDefault(t *testing.T) {
+	type fields struct {
+		Value []string
+		error error
+	}
+	type args struct {
+		defaultValue []byte
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []byte
+	}{
+		{
+			args: struct{ defaultValue []byte }{defaultValue: []byte("1")},
+			want: []byte("1"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := Parameter{
+				Value: tt.fields.Value,
+				error: tt.fields.error,
+			}
+			if got := p.BytesDefault(tt.args.defaultValue); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parameter.BytesDefault() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
