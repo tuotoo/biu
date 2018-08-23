@@ -13,6 +13,7 @@ type Parameter struct {
 	error
 }
 
+// ErrParamIsEmpty is error of parameter is empty.
 var ErrParamIsEmpty = errors.New("parameter is empty")
 
 // Bool converts a parameter value to bool.

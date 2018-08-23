@@ -20,6 +20,7 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/rs/zerolog"
+	"github.com/tuotoo/biu/run-opt"
 )
 
 const (
@@ -43,6 +44,7 @@ func newPathExpression(path string) (*pathExpression, error)
 
 var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
 
+// GlobalServiceOpt is the options of global service.
 type GlobalServiceOpt struct {
 	Filters []restful.FilterFunction
 	Errors  map[int]string
@@ -66,20 +68,14 @@ func AddServices(prefix string, opt *GlobalServiceOpt, wss ...NS) {
 	addService(prefix, opt, restful.DefaultContainer, wss...)
 }
 
-// RunConfig is the running config of container.
-type RunConfig struct {
-	BeforeShutDown func()
-	AfterShutDown  func()
-}
-
 // Run starts up a web server for container.
-func (c *Container) Run(addr string, cfg *RunConfig) {
-	run(addr, c.Container, cfg)
+func (c *Container) Run(addr string, opts ...run_opt.RunOptFunc) {
+	run(addr, c.Container, opts...)
 }
 
 // Run starts up a web server with default container.
-func Run(addr string, cfg *RunConfig) {
-	run(addr, nil, cfg)
+func Run(addr string, opts ...run_opt.RunOptFunc) {
+	run(addr, nil, opts...)
 }
 
 var (
@@ -256,7 +252,7 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
 }
 
-func run(addr string, handler http.Handler, cfg *RunConfig) {
+func run(addr string, handler http.Handler, opts ...run_opt.RunOptFunc) {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
@@ -275,13 +271,20 @@ func run(addr string, handler http.Handler, cfg *RunConfig) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	Info().Interface("ch", <-ch).Msg("signal receive")
-	if cfg != nil && cfg.BeforeShutDown != nil {
-		cfg.BeforeShutDown()
+
+	cfg := &run_opt.RunOpt{
+		BeforeShutDown: func() {},
+		AfterShutDown:  func() {},
 	}
+	for _, f := range opts {
+		if f != nil {
+			f(cfg)
+		}
+	}
+
+	cfg.BeforeShutDown()
 	Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
-	if cfg != nil && cfg.AfterShutDown != nil {
-		cfg.AfterShutDown()
-	}
+	cfg.AfterShutDown()
 	Info().Msg("server shuts down gracefully")
 }
 
