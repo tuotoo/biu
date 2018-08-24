@@ -1,4 +1,4 @@
-package biu
+package param
 
 import (
 	"reflect"
@@ -101,7 +101,7 @@ func TestParameter_Bool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := Parameter{
-				Value: tt.fields.Value,
+				value: tt.fields.Value,
 				error: tt.fields.error,
 			}
 			got, err := p.Bool()
@@ -170,7 +170,7 @@ func TestParameter_BoolDefault(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := Parameter{
-				Value: tt.fields.Value,
+				value: tt.fields.Value,
 				error: tt.fields.error,
 			}
 			if got := p.BoolDefault(tt.args.defaultValue); got != tt.want {
@@ -222,7 +222,7 @@ func TestParameter_BoolArray(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := Parameter{
-				Value: tt.fields.Value,
+				value: tt.fields.Value,
 				error: tt.fields.error,
 			}
 			got, err := p.BoolArray()
@@ -263,7 +263,7 @@ func TestParameter_Bytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := Parameter{
-				Value: tt.fields.Value,
+				value: tt.fields.Value,
 				error: tt.fields.error,
 			}
 			got, err := p.Bytes()
@@ -300,7 +300,7 @@ func TestParameter_BytesDefault(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := Parameter{
-				Value: tt.fields.Value,
+				value: tt.fields.Value,
 				error: tt.fields.error,
 			}
 			if got := p.BytesDefault(tt.args.defaultValue); !reflect.DeepEqual(got, tt.want) {

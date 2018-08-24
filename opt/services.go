@@ -21,8 +21,8 @@ func Filters(filters ...restful.FilterFunction) ServicesFunc {
 	}
 }
 
-// Errors declares the global errors for services.
-func Errors(errors map[int]string) ServicesFunc {
+// ServiceErrors declares the global errors for services.
+func ServiceErrors(errors map[int]string) ServicesFunc {
 	return func(services *Services) {
 		services.Errors = errors
 	}

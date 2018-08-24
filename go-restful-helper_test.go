@@ -8,22 +8,24 @@ import (
 
 	"github.com/gavv/httpexpect"
 	"github.com/tuotoo/biu"
+	"github.com/tuotoo/biu/ctx"
+	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
 type test struct{}
 
 func (ctl test) WebService(ws biu.WS) {
-	ws.Route(ws.GET("/{id}"), &biu.RouteOpt{
-		ID: "A47C8CD0-7528-4283-BDCA-1CD0C9E22B07",
-		To: ctl.get,
-		Errors: map[int]string{
+	ws.Route(ws.GET("/{id}"),
+		opt.RouteID("test.addService"),
+		opt.RouteTo(ctl.get),
+		opt.RouteErrors(map[int]string{
 			1: "err msg in route",
-		},
-	})
+		}),
+	)
 }
 
-func (ctl test) get(ctx biu.Ctx) {
+func (ctl test) get(ctx ctx.Ctx) {
 	i := ctx.Path("id").IntDefault(1)
 	switch i {
 	case 1:
@@ -34,7 +36,7 @@ func (ctl test) get(ctx biu.Ctx) {
 }
 
 func TestContainer_AddServices(t *testing.T) {
-	biu.UseConsoleLogger()
+	log.UseConsoleLogger()
 	biu.EnableGenPathDoc()
 	c := biu.New()
 	for _, v := range c.RegisteredWebServices() {
@@ -44,7 +46,7 @@ func TestContainer_AddServices(t *testing.T) {
 	}
 	c.AddServices("", opt.ServicesFuncArr{
 		opt.Filters(biu.LogFilter()),
-		opt.Errors(map[int]string{2: "err msg global"}),
+		opt.ServiceErrors(map[int]string{2: "err msg global"}),
 	}, biu.NS{
 		NameSpace:  "add-service",
 		Controller: test{},

@@ -20,6 +20,8 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/rs/zerolog"
+	"github.com/tuotoo/biu/ctx"
+	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
@@ -41,6 +43,9 @@ type pathExpression struct {
 
 //go:linkname newPathExpression github.com/emicklei/go-restful.newPathExpression
 func newPathExpression(path string) (*pathExpression, error)
+
+//go:linkname nameOfFunction github.com/emicklei/go-restful.nameOfFunction
+func nameOfFunction(f interface{}) string
 
 var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
 
@@ -72,80 +77,63 @@ func Run(addr string, opts ...opt.RunFunc) {
 	run(addr, nil, opts...)
 }
 
-var (
-	routeIDMap   = make(map[string]string)
-	routeErrMap  = make(map[string]map[int]string)
-	globalErrMap = make(map[int]string)
-)
-
-// RouteErrors is a errors map for routes
-type RouteErrors map[int]string
-
-// RouteOpt contains some options of route.
-type RouteOpt struct {
-	ID                 string
-	To                 func(ctx Ctx)
-	Auth               bool
-	NeedPermissions    []string
-	Errors             RouteErrors
-	DisableAutoPathDoc bool
-	ExtraPathDocs      []string
-}
-
 // Route creates a new Route using the RouteBuilder
 // and add to the ordered list of Routes.
-func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
-	if opt != nil {
-		if opt.To != nil {
-			builder = builder.To(Handle(opt.To))
-			if opt.ID != "" {
-				builder = builder.Operation(opt.ID)
-			} else {
-				builder = builder.Operation(nameOfFunction(opt.To))
-			}
-		}
-		elm := reflect.ValueOf(builder).Elem()
-		if elm.FieldByName("function").IsNil() {
-			builder = builder.To(func(_ *restful.Request, _ *restful.Response) {})
-		}
-		p1 := elm.FieldByName("rootPath").String()
-		p2 := elm.FieldByName("currentPath").String()
-		path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
-		method := elm.FieldByName("httpMethod").String()
-		mapKey := path + " " + method
-
-		if globalOptions.autoGenPathDoc && !opt.DisableAutoPathDoc {
-			exp, err := newPathExpression(p2)
-			if err != nil {
-				Fatal().Err(err).Str("path", p2).Msg("invalid path")
-			}
-			for i, v := range exp.VarNames {
-				desc := v
-				if len(opt.ExtraPathDocs) > i {
-					desc = opt.ExtraPathDocs[i]
-				}
-				builder = builder.Param(ws.PathParameter(v, desc))
-			}
-		}
-
-		if opt.ID != "" {
-			routeIDMap[mapKey] = opt.ID
-		}
-		if _, ok := routeErrMap[mapKey]; !ok {
-			routeErrMap[mapKey] = make(map[int]string)
-		}
-		for k, v := range opt.Errors {
-			routeErrMap[mapKey][k] = v
-			builder = builder.Returns(k, v, nil)
-		}
-		if opt.Auth {
-			builder = builder.Metadata("jwt", true)
-		}
-		if len(opt.NeedPermissions) != 0 {
-			builder = builder.Notes("Need Permission: " +
-				strings.Join(opt.NeedPermissions, " "))
+func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
+	cfg := &opt.Route{
+		EnableAutoPathDoc: true,
+		To:                func(ctx ctx.Ctx) {},
+	}
+	for _, f := range opts {
+		if f != nil {
+			f(cfg)
 		}
 	}
+	builder = builder.To(Handle(cfg.To))
+	if cfg.ID != "" {
+		builder = builder.Operation(cfg.ID)
+	} else {
+		builder = builder.Operation(nameOfFunction(cfg.To))
+	}
+
+	elm := reflect.ValueOf(builder).Elem()
+
+	p1 := elm.FieldByName("rootPath").String()
+	p2 := elm.FieldByName("currentPath").String()
+	path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
+	method := elm.FieldByName("httpMethod").String()
+	mapKey := path + " " + method
+
+	if globalOptions.autoGenPathDoc && cfg.EnableAutoPathDoc {
+		exp, err := newPathExpression(p2)
+		if err != nil {
+			log.Fatal().Err(err).Str("path", p2).Msg("invalid path")
+		}
+		for i, v := range exp.VarNames {
+			desc := v
+			if len(cfg.ExtraPathDocs) > i {
+				desc = cfg.ExtraPathDocs[i]
+			}
+			builder = builder.Param(ws.PathParameter(v, desc))
+		}
+	}
+
+	if cfg.ID != "" {
+		ctx.RouteIDMap[mapKey] = cfg.ID
+	}
+
+	if _, ok := ctx.RouteErrMap[mapKey]; !ok {
+		ctx.RouteErrMap[mapKey] = make(map[int]string)
+	}
+	for k, v := range cfg.Errors {
+		ctx.RouteErrMap[mapKey][k] = v
+		builder = builder.Returns(k, v, nil)
+	}
+
+	if cfg.Auth {
+		builder = builder.Metadata("jwt", true)
+	}
+
 	ws.WebService.Route(builder)
 }
 
@@ -169,7 +157,7 @@ func addService(
 			ws.Filter(f)
 		}
 		for k, v := range cfg.Errors {
-			globalErrMap[k] = v
+			ctx.GlobalErrMap[k] = v
 		}
 
 		v.Controller.WebService(WS{WebService: ws})
@@ -191,7 +179,7 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			Info().Str("path", r.Path).
+			log.Info().Str("path", r.Path).
 				Str("method", r.Method).
 				Msg("routers")
 			if routes[ri].Metadata == nil {
@@ -257,18 +245,18 @@ func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
 	}
 	addrChan := make(chan string)
 	go func() {
-		Fatal().Err(ListenAndServe(server, addrChan)).Msg("listening")
+		log.Fatal().Err(ListenAndServe(server, addrChan)).Msg("listening")
 	}()
 	select {
 	case addr := <-addrChan:
-		Info().Str("addr", addr).Msg("listening")
+		log.Info().Str("addr", addr).Msg("listening")
 	case <-time.After(time.Second):
-		Fatal().Msg("something went wrong when starting the server")
+		log.Fatal().Msg("something went wrong when starting the server")
 	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	Info().Interface("ch", <-ch).Msg("signal receive")
+	log.Info().Interface("ch", <-ch).Msg("signal receive")
 
 	cfg := &opt.Run{
 		BeforeShutDown: func() {},
@@ -281,9 +269,9 @@ func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
 	}
 
 	cfg.BeforeShutDown()
-	Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
+	log.Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
 	cfg.AfterShutDown()
-	Info().Msg("server shuts down gracefully")
+	log.Info().Msg("server shuts down gracefully")
 }
 
 // TestServer wraps a httptest.Server
@@ -328,7 +316,7 @@ func LogFilter() restful.FilterFunction {
 	) {
 		start := time.Now()
 		chain.ProcessFilter(req, resp)
-		logger.Info().Dict("fields", zerolog.Dict().
+		log.Info().Dict("fields", zerolog.Dict().
 			Str("remote_addr", strings.Split(req.Request.RemoteAddr, ":")[0]).
 			Str("method", req.Request.Method).
 			Str("uri", req.Request.URL.RequestURI()).

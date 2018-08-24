@@ -5,14 +5,15 @@ import (
 
 	"github.com/jqs7/dyttRSS/vendor_/github.com/stretchr/testify/assert"
 	"github.com/tuotoo/biu"
+	"github.com/tuotoo/biu/opt"
 )
 
 type SwaggerTest struct{}
 
 func (ctl SwaggerTest) WebService(ws biu.WS) {
-	authOpt := &biu.RouteOpt{Auth: true}
+	authOpt := opt.EnableAuth()
 	ws.Route(ws.GET("/"), authOpt)
-	ws.Route(ws.GET("/no/auth"), &biu.RouteOpt{})
+	ws.Route(ws.GET("/no/auth"))
 	ws.Route(ws.POST("/"), authOpt)
 	ws.Route(ws.PATCH("/"), authOpt)
 	ws.Route(ws.DELETE("/"), authOpt)

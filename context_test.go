@@ -8,14 +8,17 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/gavv/httpexpect"
 	"github.com/tuotoo/biu"
+	"github.com/tuotoo/biu/ctx"
+	"github.com/tuotoo/biu/log"
+	"github.com/tuotoo/biu/opt"
 )
 
 func TestCtx_Must(t *testing.T) {
 	var tmpValue int
 	ws := biu.WS{WebService: &restful.WebService{}}
-	ws.Route(ws.GET("/must/{id}"), &biu.RouteOpt{
-		ID: "1226BE98-98EB-44D9-95BA-BC82E320C1BA",
-		To: func(ctx biu.Ctx) {
+	ws.Route(ws.GET("/must/{id}"),
+		opt.RouteID("test.must"),
+		opt.RouteTo(func(ctx ctx.Ctx) {
 			i := ctx.Path("id").IntDefault(1)
 			switch i {
 			case 1:
@@ -31,19 +34,19 @@ func TestCtx_Must(t *testing.T) {
 					tmpValue = 2
 				})
 			}
-		},
-		Errors: map[int]string{
+		}),
+		opt.RouteErrors(map[int]string{
 			1: "normal err",
 			2: "with arg %s",
 			3: "with func",
 			4: "with func and arg %s",
-		},
-	})
+		}),
+	)
 	c := biu.New()
 	c.Add(ws.WebService)
 	s := httptest.NewServer(c)
 	defer s.Close()
-	biu.UseConsoleLogger()
+	log.UseConsoleLogger()
 	httpexpect.New(t, s.URL).GET("/must/1").Expect().JSON().Object().
 		ValueEqual("code", 1).ValueEqual("message", "normal err")
 	httpexpect.New(t, s.URL).GET("/must/2").Expect().JSON().Object().

@@ -10,7 +10,7 @@ import (
 
 func TestErrors(t *testing.T) {
 	cfg := &opt.Services{}
-	opt.Errors(map[int]string{1: "fuck"})(cfg)
+	opt.ServiceErrors(map[int]string{1: "fuck"})(cfg)
 	assert.Contains(t, cfg.Errors, 1)
 	assert.Equal(t, "fuck", cfg.Errors[1])
 }
