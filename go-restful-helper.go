@@ -20,7 +20,7 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/rs/zerolog"
-	"github.com/tuotoo/biu/run-opt"
+	"github.com/tuotoo/biu/opt"
 )
 
 const (
@@ -69,12 +69,12 @@ func AddServices(prefix string, opt *GlobalServiceOpt, wss ...NS) {
 }
 
 // Run starts up a web server for container.
-func (c *Container) Run(addr string, opts ...run_opt.RunOptFunc) {
+func (c *Container) Run(addr string, opts ...opt.RunFunc) {
 	run(addr, c.Container, opts...)
 }
 
 // Run starts up a web server with default container.
-func Run(addr string, opts ...run_opt.RunOptFunc) {
+func Run(addr string, opts ...opt.RunFunc) {
 	run(addr, nil, opts...)
 }
 
@@ -252,7 +252,7 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
 }
 
-func run(addr string, handler http.Handler, opts ...run_opt.RunOptFunc) {
+func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
@@ -272,7 +272,7 @@ func run(addr string, handler http.Handler, opts ...run_opt.RunOptFunc) {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	Info().Interface("ch", <-ch).Msg("signal receive")
 
-	cfg := &run_opt.RunOpt{
+	cfg := &opt.Run{
 		BeforeShutDown: func() {},
 		AfterShutDown:  func() {},
 	}
