@@ -1,6 +1,6 @@
 package opt
 
-import "github.com/tuotoo/biu/ctx"
+import "github.com/tuotoo/biu/box"
 
 // RouteFunc is the type of route options functions.
 type RouteFunc func(*Route)
@@ -8,7 +8,7 @@ type RouteFunc func(*Route)
 // Route is the options of route.
 type Route struct {
 	ID                string
-	To                func(ctx ctx.Ctx)
+	To                func(ctx box.Ctx)
 	Auth              bool
 	Errors            map[int]string
 	EnableAutoPathDoc bool
@@ -23,7 +23,7 @@ func RouteID(id string) RouteFunc {
 }
 
 // RouteTo binds a function to a route.
-func RouteTo(f func(ctx ctx.Ctx)) RouteFunc {
+func RouteTo(f func(ctx box.Ctx)) RouteFunc {
 	return func(route *Route) {
 		route.To = f
 	}

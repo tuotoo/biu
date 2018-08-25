@@ -3,7 +3,7 @@ package biu_test
 import (
 	"github.com/emicklei/go-restful"
 	"github.com/tuotoo/biu"
-	"github.com/tuotoo/biu/ctx"
+	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/opt"
 )
 
@@ -34,7 +34,7 @@ type Bar struct {
 	Num int    `json:"num"`
 }
 
-func (ctl Foo) getBar(ctx ctx.Ctx) {
+func (ctl Foo) getBar(ctx box.Ctx) {
 	num, err := ctx.Query("num").Int()
 	ctx.Must(err, 100)
 

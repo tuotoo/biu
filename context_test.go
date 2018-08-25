@@ -8,7 +8,7 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/gavv/httpexpect"
 	"github.com/tuotoo/biu"
-	"github.com/tuotoo/biu/ctx"
+	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
@@ -18,7 +18,7 @@ func TestCtx_Must(t *testing.T) {
 	ws := biu.WS{WebService: &restful.WebService{}}
 	ws.Route(ws.GET("/must/{id}"),
 		opt.RouteID("test.must"),
-		opt.RouteTo(func(ctx ctx.Ctx) {
+		opt.RouteTo(func(ctx box.Ctx) {
 			i := ctx.Path("id").IntDefault(1)
 			switch i {
 			case 1:

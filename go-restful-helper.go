@@ -20,7 +20,7 @@ import (
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/rs/zerolog"
-	"github.com/tuotoo/biu/ctx"
+	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
@@ -82,7 +82,7 @@ func Run(addr string, opts ...opt.RunFunc) {
 func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	cfg := &opt.Route{
 		EnableAutoPathDoc: true,
-		To:                func(ctx ctx.Ctx) {},
+		To:                func(ctx box.Ctx) {},
 	}
 	for _, f := range opts {
 		if f != nil {
@@ -119,14 +119,14 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	}
 
 	if cfg.ID != "" {
-		ctx.RouteIDMap[mapKey] = cfg.ID
+		box.RouteIDMap[mapKey] = cfg.ID
 	}
 
-	if _, ok := ctx.RouteErrMap[mapKey]; !ok {
-		ctx.RouteErrMap[mapKey] = make(map[int]string)
+	if _, ok := box.RouteErrMap[mapKey]; !ok {
+		box.RouteErrMap[mapKey] = make(map[int]string)
 	}
 	for k, v := range cfg.Errors {
-		ctx.RouteErrMap[mapKey][k] = v
+		box.RouteErrMap[mapKey][k] = v
 		builder = builder.Returns(k, v, nil)
 	}
 
@@ -157,7 +157,7 @@ func addService(
 			ws.Filter(f)
 		}
 		for k, v := range cfg.Errors {
-			ctx.GlobalErrMap[k] = v
+			box.GlobalErrMap[k] = v
 		}
 
 		v.Controller.WebService(WS{WebService: ws})

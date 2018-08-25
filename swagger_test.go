@@ -3,7 +3,7 @@ package biu_test
 import (
 	"testing"
 
-	"github.com/jqs7/dyttRSS/vendor_/github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/opt"
 )

@@ -8,7 +8,7 @@ import (
 
 	"github.com/gavv/httpexpect"
 	"github.com/tuotoo/biu"
-	"github.com/tuotoo/biu/ctx"
+	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
@@ -25,7 +25,7 @@ func (ctl test) WebService(ws biu.WS) {
 	)
 }
 
-func (ctl test) get(ctx ctx.Ctx) {
+func (ctl test) get(ctx box.Ctx) {
 	i := ctx.Path("id").IntDefault(1)
 	switch i {
 	case 1:

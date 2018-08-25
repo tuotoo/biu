@@ -1,4 +1,4 @@
-package ctx
+package box
 
 // CommonResp with code, message and data
 type CommonResp struct {
