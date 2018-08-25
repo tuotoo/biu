@@ -24,6 +24,7 @@ All our projects follow the [GitFlow branching model](http://nvie.com/posts/a-su
 - [go-restful](https://github.com/emicklei/go-restful)
 - [jwt-go](https://github.com/dgrijalva/jwt-go)
 - [Gin](https://github.com/gin-gonic/gin)
+- [Beego](https://github.com/astaxie/beego)
 - [json-iterator](https://github.com/json-iterator/go)
 - [errc](https://github.com/mpvl/errc)
 - [zerolog](https://github.com/rs/zerolog)
