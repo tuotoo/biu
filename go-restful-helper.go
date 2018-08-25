@@ -8,16 +8,21 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+	_ "unsafe"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/rs/zerolog"
+	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/log"
+	"github.com/tuotoo/biu/opt"
 )
 
 const (
@@ -27,12 +32,24 @@ const (
 	MIME_FILE_FORM = "multipart/form-data"
 )
 
-var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
+var AutoGenPathDoc = false
 
-type GlobalServiceOpt struct {
-	Filters []restful.FilterFunction
-	Errors  map[int]string
+type pathExpression struct {
+	LiteralCount int      // the number of literal characters (means those not resulting from template variable substitution)
+	VarNames     []string // the names of parameters (enclosed by {}) in the path
+	VarCount     int      // the number of named parameters (enclosed by {}) in the path
+	Matcher      *regexp.Regexp
+	Source       string // Path as defined by the RouteBuilder
+	tokens       []string
 }
+
+//go:linkname newPathExpression github.com/emicklei/go-restful.newPathExpression
+func newPathExpression(path string) (*pathExpression, error)
+
+//go:linkname nameOfFunction github.com/emicklei/go-restful.nameOfFunction
+func nameOfFunction(f interface{}) string
+
+var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
 
 // Container of restful
 type Container struct{ *restful.Container }
@@ -43,94 +60,88 @@ func New() Container {
 }
 
 // AddServices adds services with namespace for container.
-func (c *Container) AddServices(prefix string, opt *GlobalServiceOpt, wss ...NS) {
-	addService(prefix, opt, c.Container, wss...)
+func (c *Container) AddServices(prefix string, opts opt.ServicesFuncArr, wss ...NS) {
+	addService(prefix, opts, c.Container, wss...)
 }
 
 // AddServices adds services with namespace.
-func AddServices(prefix string, opt *GlobalServiceOpt, wss ...NS) {
-	addService(prefix, opt, restful.DefaultContainer, wss...)
-}
-
-// RunConfig is the running config of container.
-type RunConfig struct {
-	BeforeShutDown func()
-	AfterShutDown  func()
+func AddServices(prefix string, opts opt.ServicesFuncArr, wss ...NS) {
+	addService(prefix, opts, restful.DefaultContainer, wss...)
 }
 
 // Run starts up a web server for container.
-func (c *Container) Run(addr string, cfg *RunConfig) {
-	run(addr, c.Container, cfg)
+func (c *Container) Run(addr string, opts ...opt.RunFunc) {
+	run(addr, c.Container, opts...)
 }
 
 // Run starts up a web server with default container.
-func Run(addr string, cfg *RunConfig) {
-	run(addr, nil, cfg)
-}
-
-var (
-	routeIDMap   = make(map[string]string)
-	routeErrMap  = make(map[string]map[int]string)
-	globalErrMap = make(map[int]string)
-)
-
-// RouteErrors is a errors map for routes
-type RouteErrors map[int]string
-
-// RouteOpt contains some options of route.
-type RouteOpt struct {
-	ID              string
-	To              func(ctx Ctx)
-	Auth            bool
-	NeedPermissions []string
-	Errors          RouteErrors
+func Run(addr string, opts ...opt.RunFunc) {
+	run(addr, nil, opts...)
 }
 
 // Route creates a new Route using the RouteBuilder
 // and add to the ordered list of Routes.
-func (ws WS) Route(builder *restful.RouteBuilder, opt *RouteOpt) {
-	if opt != nil {
-		if opt.To != nil {
-			builder = builder.To(Handle(opt.To))
-			if opt.ID != "" {
-				builder = builder.Operation(opt.ID)
-			} else {
-				builder = builder.Operation(nameOfFunction(opt.To))
-			}
-		}
-		elm := reflect.ValueOf(builder).Elem()
-		if elm.FieldByName("function").IsNil() {
-			builder = builder.To(func(_ *restful.Request, _ *restful.Response) {})
-		}
-		p1 := elm.FieldByName("rootPath").String()
-		p2 := elm.FieldByName("currentPath").String()
-		path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
-		method := elm.FieldByName("httpMethod").String()
-		mapKey := path + " " + method
-		if opt.ID != "" {
-			routeIDMap[mapKey] = opt.ID
-		}
-		if _, ok := routeErrMap[mapKey]; !ok {
-			routeErrMap[mapKey] = make(map[int]string)
-		}
-		for k, v := range opt.Errors {
-			routeErrMap[mapKey][k] = v
-			builder = builder.Returns(k, v, nil)
-		}
-		if opt.Auth {
-			builder = builder.Metadata("jwt", true)
-		}
-		if len(opt.NeedPermissions) != 0 {
-			builder = builder.Notes("Need Permission: " +
-				strings.Join(opt.NeedPermissions, " "))
+func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
+	cfg := &opt.Route{
+		EnableAutoPathDoc: true,
+		To:                func(ctx box.Ctx) {},
+	}
+	for _, f := range opts {
+		if f != nil {
+			f(cfg)
 		}
 	}
+	builder = builder.To(Handle(cfg.To))
+	if cfg.ID != "" {
+		builder = builder.Operation(cfg.ID)
+	} else {
+		builder = builder.Operation(nameOfFunction(cfg.To))
+	}
+
+	elm := reflect.ValueOf(builder).Elem()
+
+	p1 := elm.FieldByName("rootPath").String()
+	p2 := elm.FieldByName("currentPath").String()
+	path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
+	method := elm.FieldByName("httpMethod").String()
+	mapKey := path + " " + method
+
+	if AutoGenPathDoc && cfg.EnableAutoPathDoc {
+		exp, err := newPathExpression(p2)
+		if err != nil {
+			log.Fatal().Err(err).Str("path", p2).Msg("invalid path")
+		}
+		for i, v := range exp.VarNames {
+			desc := v
+			if len(cfg.ExtraPathDocs) > i {
+				desc = cfg.ExtraPathDocs[i]
+			}
+			builder = builder.Param(ws.PathParameter(v, desc))
+		}
+	}
+
+	if cfg.ID != "" {
+		box.RouteIDMap[mapKey] = cfg.ID
+	}
+
+	if _, ok := box.RouteErrMap[mapKey]; !ok {
+		box.RouteErrMap[mapKey] = make(map[int]string)
+	}
+	for k, v := range cfg.Errors {
+		box.RouteErrMap[mapKey][k] = v
+		builder = builder.Returns(k, v, nil)
+	}
+
+	if cfg.Auth {
+		builder = builder.Metadata("jwt", true)
+	}
+
 	ws.WebService.Route(builder)
 }
 
 func addService(
 	prefix string,
-	opt *GlobalServiceOpt,
+	opts opt.ServicesFuncArr,
 	container *restful.Container,
 	wss ...NS,
 ) {
@@ -139,14 +150,18 @@ func addService(
 		ws := new(restful.WebService)
 		path := prefix + "/" + v.NameSpace
 		ws.Path(path).Produces(restful.MIME_JSON)
-		if opt != nil {
-			for _, f := range opt.Filters {
-				ws.Filter(f)
-			}
-			for k, v := range opt.Errors {
-				globalErrMap[k] = v
-			}
+
+		cfg := &opt.Services{}
+		for _, f := range opts {
+			f(cfg)
 		}
+		for _, f := range cfg.Filters {
+			ws.Filter(f)
+		}
+		for k, v := range cfg.Errors {
+			box.GlobalErrMap[k] = v
+		}
+
 		v.Controller.WebService(WS{WebService: ws})
 		container.Add(ws)
 
@@ -166,8 +181,7 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			Info().
-				Str("path", r.Path).
+			log.Info().Str("path", r.Path).
 				Str("method", r.Method).
 				Msg("routers")
 			if routes[ri].Metadata == nil {
@@ -226,33 +240,40 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
 }
 
-func run(addr string, handler http.Handler, cfg *RunConfig) {
+func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
 	}
 	addrChan := make(chan string)
 	go func() {
-		Fatal().Err(ListenAndServe(server, addrChan)).Msg("listening")
+		log.Fatal().Err(ListenAndServe(server, addrChan)).Msg("listening")
 	}()
 	select {
 	case addr := <-addrChan:
-		Info().Str("addr", addr).Msg("listening")
+		log.Info().Str("addr", addr).Msg("listening")
 	case <-time.After(time.Second):
-		Fatal().Msg("something went wrong when starting the server")
+		log.Fatal().Msg("something went wrong when starting the server")
 	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	Info().Interface("ch", <-ch).Msg("signal receive")
-	if cfg != nil && cfg.BeforeShutDown != nil {
-		cfg.BeforeShutDown()
+	log.Info().Interface("ch", <-ch).Msg("signal receive")
+
+	cfg := &opt.Run{
+		BeforeShutDown: func() {},
+		AfterShutDown:  func() {},
 	}
-	Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
-	if cfg != nil && cfg.AfterShutDown != nil {
-		cfg.AfterShutDown()
+	for _, f := range opts {
+		if f != nil {
+			f(cfg)
+		}
 	}
-	Info().Msg("server shuts down gracefully")
+
+	cfg.BeforeShutDown()
+	log.Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
+	cfg.AfterShutDown()
+	log.Info().Msg("server shuts down gracefully")
 }
 
 // TestServer wraps a httptest.Server
@@ -297,7 +318,7 @@ func LogFilter() restful.FilterFunction {
 	) {
 		start := time.Now()
 		chain.ProcessFilter(req, resp)
-		logger.Info().Dict("fields", zerolog.Dict().
+		log.Info().Dict("fields", zerolog.Dict().
 			Str("remote_addr", strings.Split(req.Request.RemoteAddr, ":")[0]).
 			Str("method", req.Request.Method).
 			Str("uri", req.Request.URL.RequestURI()).

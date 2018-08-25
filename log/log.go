@@ -1,4 +1,4 @@
-package biu
+package log
 
 import (
 	"bytes"

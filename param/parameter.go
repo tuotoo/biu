@@ -1,4 +1,4 @@
-package biu
+package param
 
 import (
 	"errors"
@@ -9,9 +9,16 @@ import (
 
 // Parameter wrap parameter value in a request.
 type Parameter struct {
-	Value []string
+	value []string
 	error
 }
+
+func NewParameter(val []string, err error) Parameter {
+	return Parameter{value: val, error: err}
+}
+
+// ErrParamIsEmpty is error of parameter is empty.
+var ErrParamIsEmpty = errors.New("parameter is empty")
 
 // Bool converts a parameter value to bool.
 func (p Parameter) Bool() (bool, error) {
@@ -19,10 +26,10 @@ func (p Parameter) Bool() (bool, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		return strconv.ParseBool(p.Value[0])
+	if len(p.value) > 0 {
+		return strconv.ParseBool(p.value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // BoolDefault converts a parameter value to bool with default value.
@@ -40,8 +47,8 @@ func (p Parameter) BoolArray() ([]bool, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]bool, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]bool, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseBool(v)
 		if err != nil {
 			return nil, err
@@ -57,11 +64,11 @@ func (p Parameter) Float32() (float32, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseFloat(p.Value[0], 32)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseFloat(p.value[0], 32)
 		return float32(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Float32Default converts a parameter value to float32 with default value.
@@ -79,8 +86,8 @@ func (p Parameter) Float32Array() ([]float32, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]float32, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]float32, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseFloat(v, 32)
 		if err != nil {
 			return nil, err
@@ -96,10 +103,10 @@ func (p Parameter) Float64() (float64, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		return strconv.ParseFloat(p.Value[0], 64)
+	if len(p.value) > 0 {
+		return strconv.ParseFloat(p.value[0], 64)
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Float64Default converts a parameter value to float64 with default value.
@@ -117,8 +124,8 @@ func (p Parameter) Float64Array() ([]float64, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]float64, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]float64, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			return nil, err
@@ -134,11 +141,11 @@ func (p Parameter) Int() (int, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseInt(p.Value[0], 10, 32)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseInt(p.value[0], 10, 32)
 		return int(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // IntDefault converts a parameter value to int with default value.
@@ -156,8 +163,8 @@ func (p Parameter) IntArray() ([]int, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]int, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]int, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return nil, err
@@ -173,11 +180,11 @@ func (p Parameter) Int8() (int8, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseInt(p.Value[0], 10, 8)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseInt(p.value[0], 10, 8)
 		return int8(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int8Default converts a parameter value to int8 with default value.
@@ -195,8 +202,8 @@ func (p Parameter) Int8Array() ([]int8, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]int8, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]int8, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseInt(v, 10, 8)
 		if err != nil {
 			return nil, err
@@ -212,11 +219,11 @@ func (p Parameter) Int16() (int16, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseInt(p.Value[0], 10, 16)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseInt(p.value[0], 10, 16)
 		return int16(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int16Default converts a parameter value to int16 with default value.
@@ -234,8 +241,8 @@ func (p Parameter) Int16Array() ([]int16, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]int16, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]int16, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseInt(v, 10, 16)
 		if err != nil {
 			return nil, err
@@ -251,11 +258,11 @@ func (p Parameter) Int32() (int32, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseInt(p.Value[0], 10, 32)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseInt(p.value[0], 10, 32)
 		return int32(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int32Default converts a parameter value to int32 with default value.
@@ -273,8 +280,8 @@ func (p Parameter) Int32Array() ([]int32, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]int32, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]int32, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return nil, err
@@ -303,10 +310,10 @@ func (p Parameter) Int64() (int64, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		return strToInt64(p.Value[0])
+	if len(p.value) > 0 {
+		return strToInt64(p.value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Int64Default converts a parameter value to int64 with default value.
@@ -324,8 +331,8 @@ func (p Parameter) Int64Array() ([]int64, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]int64, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]int64, len(p.value))
+	for i, v := range p.value {
 		m, err := strToInt64(v)
 		if err != nil {
 			return nil, err
@@ -341,11 +348,11 @@ func (p Parameter) Uint() (uint, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseUint(p.Value[0], 10, 32)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseUint(p.value[0], 10, 32)
 		return uint(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // UintDefault converts a parameter value to uint with default value.
@@ -363,8 +370,8 @@ func (p Parameter) UintArray() ([]uint, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]uint, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]uint, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
 			return nil, err
@@ -380,11 +387,11 @@ func (p Parameter) Uint8() (uint8, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseUint(p.Value[0], 10, 8)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseUint(p.value[0], 10, 8)
 		return uint8(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint8Default converts a parameter value to uint8 with default value.
@@ -402,8 +409,8 @@ func (p Parameter) Uint8Array() ([]uint8, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]uint8, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]uint8, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseUint(v, 10, 8)
 		if err != nil {
 			return nil, err
@@ -419,11 +426,11 @@ func (p Parameter) Uint16() (uint16, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseUint(p.Value[0], 10, 16)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseUint(p.value[0], 10, 16)
 		return uint16(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint16Default converts a parameter value to uint16 with default value.
@@ -441,8 +448,8 @@ func (p Parameter) Uint16Array() ([]uint16, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]uint16, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]uint16, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseUint(v, 10, 16)
 		if err != nil {
 			return nil, err
@@ -458,11 +465,11 @@ func (p Parameter) Uint32() (uint32, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		v, err := strconv.ParseUint(p.Value[0], 10, 32)
+	if len(p.value) > 0 {
+		v, err := strconv.ParseUint(p.value[0], 10, 32)
 		return uint32(v), err
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint32Default converts a parameter value to uint32 with default value.
@@ -480,8 +487,8 @@ func (p Parameter) Uint32Array() ([]uint32, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]uint32, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]uint32, len(p.value))
+	for i, v := range p.value {
 		m, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
 			return nil, err
@@ -510,10 +517,10 @@ func (p Parameter) Uint64() (uint64, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		return strToUint64(p.Value[0])
+	if len(p.value) > 0 {
+		return strToUint64(p.value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // Uint64Default converts a parameter value to uint64 with default value.
@@ -531,8 +538,8 @@ func (p Parameter) Uint64Array() ([]uint64, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]uint64, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]uint64, len(p.value))
+	for i, v := range p.value {
 		m, err := strToUint64(v)
 		if err != nil {
 			return nil, err
@@ -548,10 +555,10 @@ func (p Parameter) String() (string, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		return p.Value[0], nil
+	if len(p.value) > 0 {
+		return p.value[0], nil
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // StringDefault converts a parameter value to string with default value.
@@ -569,7 +576,27 @@ func (p Parameter) StringArray() ([]string, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	return p.Value, nil
+	return p.value, nil
+}
+
+// Bytes converts a parameter value to bytes.
+func (p Parameter) Bytes() ([]byte, error) {
+	if p.error != nil {
+		return nil, p.error
+	}
+	if len(p.value) > 0 {
+		return []byte(p.value[0]), nil
+	}
+	return nil, ErrParamIsEmpty
+}
+
+// BytesDefault converts a parameter value to bytes with default value.
+func (p Parameter) BytesDefault(defaultValue []byte) []byte {
+	rst, err := p.Bytes()
+	if err != nil {
+		return defaultValue
+	}
+	return rst
 }
 
 // Time parse a parameter value to time.Time with given layout.
@@ -578,10 +605,10 @@ func (p Parameter) Time(layout string) (time.Time, error) {
 	if p.error != nil {
 		return zeroVal, p.error
 	}
-	if len(p.Value) > 0 {
-		return time.Parse(layout, p.Value[0])
+	if len(p.value) > 0 {
+		return time.Parse(layout, p.value[0])
 	}
-	return zeroVal, errors.New("parameter is empty")
+	return zeroVal, ErrParamIsEmpty
 }
 
 // TimeDefault parse a parameter value to time.Time with given layout with default value.
@@ -599,8 +626,8 @@ func (p Parameter) TimeArray(layout string) ([]time.Time, error) {
 	if p.error != nil {
 		return rst, p.error
 	}
-	rst = make([]time.Time, len(p.Value))
-	for i, v := range p.Value {
+	rst = make([]time.Time, len(p.value))
+	for i, v := range p.value {
 		m, err := time.Parse(layout, v)
 		if err != nil {
 			return nil, err

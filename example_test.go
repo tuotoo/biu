@@ -3,6 +3,8 @@ package biu_test
 import (
 	"github.com/emicklei/go-restful"
 	"github.com/tuotoo/biu"
+	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/opt"
 )
 
 // Foo controller
@@ -11,14 +13,15 @@ type Foo struct{}
 // WebService implements CtlInterface
 func (ctl Foo) WebService(ws biu.WS) {
 	ws.Route(ws.GET("/").Doc("Get Bar").
-		Param(ws.QueryParameter("num", "number").DataType("integer")).
-		DefaultReturns("Bar", Bar{}), &biu.RouteOpt{
-		ID: "2F996F8F-9D08-4BE0-9D4D-ACB328D8F387",
-		To: ctl.getBar,
-		Errors: map[int]string{
+		Param(ws.QueryParameter("num", "number").
+			DataType("integer")).
+		DefaultReturns("Bar", Bar{}),
+		opt.RouteID("example.foo"),
+		opt.RouteTo(ctl.getBar),
+		opt.RouteErrors(map[int]string{
 			100: "num not Number",
-		},
-	})
+		}),
+	)
 
 	// add more routes as you like:
 	// ws.Route(ws.POST("/foo"),nil)
@@ -31,7 +34,7 @@ type Bar struct {
 	Num int    `json:"num"`
 }
 
-func (ctl Foo) getBar(ctx biu.Ctx) {
+func (ctl Foo) getBar(ctx box.Ctx) {
 	num, err := ctx.Query("num").Int()
 	ctx.Must(err, 100)
 
