@@ -1,12 +1,12 @@
-package biu_test
+package box_test
 
 import (
-	"errors"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/emicklei/go-restful"
 	"github.com/gavv/httpexpect"
+	"github.com/pkg/errors"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"

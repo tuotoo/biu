@@ -32,6 +32,8 @@ const (
 	MIME_FILE_FORM = "multipart/form-data"
 )
 
+var AutoGenPathDoc = false
+
 type pathExpression struct {
 	LiteralCount int      // the number of literal characters (means those not resulting from template variable substitution)
 	VarNames     []string // the names of parameters (enclosed by {}) in the path
@@ -104,7 +106,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	method := elm.FieldByName("httpMethod").String()
 	mapKey := path + " " + method
 
-	if globalOptions.autoGenPathDoc && cfg.EnableAutoPathDoc {
+	if AutoGenPathDoc && cfg.EnableAutoPathDoc {
 		exp, err := newPathExpression(p2)
 		if err != nil {
 			log.Fatal().Err(err).Str("path", p2).Msg("invalid path")

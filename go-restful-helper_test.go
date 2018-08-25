@@ -37,7 +37,7 @@ func (ctl test) get(ctx box.Ctx) {
 
 func TestContainer_AddServices(t *testing.T) {
 	log.UseConsoleLogger()
-	biu.EnableGenPathDoc()
+	biu.AutoGenPathDoc = true
 	c := biu.New()
 	for _, v := range c.RegisteredWebServices() {
 		for _, j := range v.Routes() {

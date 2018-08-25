@@ -9,27 +9,23 @@ import (
 	"github.com/tuotoo/biu/log"
 )
 
-var globalOptions = struct {
-	jwtTimeout        time.Duration
-	jwtSecret         func(string) ([]byte, error)
-	jwtRefreshTimeout time.Duration
-}{
-	jwtTimeout: time.Minute * 5,
-	jwtSecret: func(userID string) (secret []byte, err error) {
+var (
+	JWTTimeout = time.Minute * 5
+	JWTSecret  = func(userID string) (secret []byte, err error) {
 		return []byte("secret"), nil
-	},
-	jwtRefreshTimeout: time.Hour * 24 * 7,
-}
+	}
+	JWTRefreshTimeout = time.Hour * 24 * 7
+)
 
 // Sign returns a signed jwt string.
 func Sign(userID string) (token string, err error) {
 	now := time.Now()
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": userID,
-		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
+		"exp": now.Add(JWTTimeout).Unix(),
 		"iat": now.Unix(),
 	})
-	sec, err := globalOptions.jwtSecret(userID)
+	sec, err := JWTSecret(userID)
 	if err != nil {
 		return "", err
 	}
@@ -56,7 +52,7 @@ func ParseToken(token string) (*jwt.Token, error) {
 			log.Info().Err(uidErr).Msg("parse uid in token")
 			return nil, uidErr
 		}
-		return globalOptions.jwtSecret(uid)
+		return JWTSecret(uid)
 	})
 }
 
@@ -78,7 +74,7 @@ func RefreshToken(token string) (newToken string, err error) {
 	}
 	now := time.Now()
 	iat := int64(iatF64)
-	if iat < now.Add(-globalOptions.jwtRefreshTimeout).Unix() {
+	if iat < now.Add(-JWTRefreshTimeout).Unix() {
 		return "", errors.New("refresh is expired")
 	}
 	uid, ok := claims["uid"].(string)
@@ -87,10 +83,10 @@ func RefreshToken(token string) (newToken string, err error) {
 	}
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": uid,
-		"exp": now.Add(globalOptions.jwtTimeout).Unix(),
+		"exp": now.Add(JWTTimeout).Unix(),
 		"iat": iat,
 	})
-	sec, err := globalOptions.jwtSecret(uid)
+	sec, err := JWTSecret(uid)
 	if err != nil {
 		return "", err
 	}
