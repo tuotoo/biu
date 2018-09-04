@@ -172,6 +172,17 @@ func (ctx *Ctx) IP() string {
 	return ra
 }
 
+// Host returns the host of request.
+func (ctx *Ctx) Host() string {
+	if ctx.Request.Request.Host != "" {
+		if hostPart, _, err := net.SplitHostPort(ctx.Request.Request.Host); err == nil {
+			return hostPart
+		}
+		return ctx.Request.Request.Host
+	}
+	return "localhost"
+}
+
 // Proxy returns the proxy endpoints behind a request.
 func (ctx *Ctx) Proxy() []string {
 	if ipArr := ctx.HeaderParameter("X-Forwarded-For"); ipArr != "" {
