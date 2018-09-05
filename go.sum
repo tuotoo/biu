@@ -10,8 +10,8 @@ github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumC
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/emicklei/go-restful v2.8.0+incompatible h1:wN8GCRDPGHguIynsnBartv5GUgGUg1LAU7+xnSn1j7Q=
 github.com/emicklei/go-restful v2.8.0+incompatible/go.mod h1:otzb+WCGbkyDHkqmQmT5YD2WR4BBwUdeQoFo8l/7tVs=
-github.com/emicklei/go-restful-openapi v0.11.0 h1:dVVAHvTTeDX1a6UCVmD6bfFyerFoz1hRgzcGfn3FAWA=
-github.com/emicklei/go-restful-openapi v0.11.0/go.mod h1:Q+bHVYfUWv1fvC4FNTsz2AVvFSsXAC7RCiWjF1Sva1A=
+github.com/emicklei/go-restful-openapi v1.0.0 h1:ZFk3RuCl8ZmG1yUAF/mSbXRi5cuyA/k5+EpHayuuTXM=
+github.com/emicklei/go-restful-openapi v1.0.0/go.mod h1:Q+bHVYfUWv1fvC4FNTsz2AVvFSsXAC7RCiWjF1Sva1A=
 github.com/fatih/structs v1.0.0 h1:BrX964Rv5uQ3wwS+KRUAJCBBw5PQmgJfJ6v4yly5QwU=
 github.com/fatih/structs v1.0.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
