@@ -28,11 +28,17 @@ func Handle(f func(ctx box.Ctx)) restful.RouteFunction {
 func Filter(f func(ctx box.Ctx)) restful.FilterFunction {
 	return func(request *restful.Request, response *restful.Response,
 		chain *restful.FilterChain) {
-		f(box.Ctx{
+		c := box.Ctx{
 			Request:     request,
 			Response:    response,
 			FilterChain: chain,
-		})
+		}
+		if !box.DisableErrHandler {
+			e := errc.Catch(new(error))
+			defer e.Handle()
+			c.ErrCatcher = e
+		}
+		f(c)
 	}
 }
 

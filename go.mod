@@ -7,7 +7,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/emicklei/go-restful v2.8.0+incompatible
-	github.com/emicklei/go-restful-openapi v0.11.0
+	github.com/emicklei/go-restful-openapi v1.0.0
 	github.com/fatih/structs v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/gavv/httpexpect v0.0.0-20180803094507-bdde30871313
