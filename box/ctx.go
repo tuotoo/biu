@@ -313,7 +313,7 @@ func ContainsError(w http.ResponseWriter, RouteSignature string, err error, code
 // CheckError is a convenience method to check error is nil.
 // If error is nil, it will return true,
 // else it will log the error and return false
-func CheckError(err error, log *log.LogWrap) bool {
+func CheckError(err error, log *log.Wrap) bool {
 	if err == nil {
 		return true
 	}
