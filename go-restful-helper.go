@@ -19,7 +19,6 @@ import (
 	"github.com/emicklei/go-restful-openapi"
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
-	"github.com/rs/zerolog"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
@@ -318,13 +317,13 @@ func LogFilter() restful.FilterFunction {
 	) {
 		start := time.Now()
 		chain.ProcessFilter(req, resp)
-		log.Info().Dict("fields", zerolog.Dict().
+		log.Info().
 			Str("remote_addr", strings.Split(req.Request.RemoteAddr, ":")[0]).
 			Str("method", req.Request.Method).
 			Str("uri", req.Request.URL.RequestURI()).
 			Str("proto", req.Request.Proto).
 			Int("status_code", resp.StatusCode()).
 			Dur("dur", time.Since(start)).
-			Int("content_length", resp.ContentLength())).Msg("req")
+			Int("content_length", resp.ContentLength()).Msg("req")
 	}
 }
