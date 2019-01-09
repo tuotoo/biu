@@ -15,8 +15,8 @@ import (
 	"time"
 	_ "unsafe"
 
-	"github.com/emicklei/go-restful"
-	"github.com/emicklei/go-restful-openapi"
+	restful "github.com/emicklei/go-restful"
+	restfulspec "github.com/emicklei/go-restful-openapi"
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/box"
@@ -240,13 +240,30 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 }
 
 func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
+	nCtx, nCancel := context.WithCancel(context.Background())
+	cfg := &opt.Run{
+		BeforeShutDown: func() {},
+		AfterShutDown:  func() {},
+		Ctx:            nCtx,
+		Cancel:         nCancel,
+	}
+	for _, f := range opts {
+		if f != nil {
+			f(cfg)
+		}
+	}
+
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
 	}
 	addrChan := make(chan string)
+
 	go func() {
-		log.Fatal().Err(ListenAndServe(server, addrChan)).Msg("listening")
+		log.Error().Err(ListenAndServe(server, addrChan)).Msg("listening")
+		if cfg.Cancel != nil {
+			cfg.Cancel()
+		}
 	}()
 	select {
 	case addr := <-addrChan:
@@ -259,18 +276,12 @@ func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	log.Info().Interface("ch", <-ch).Msg("signal receive")
 
-	cfg := &opt.Run{
-		BeforeShutDown: func() {},
-		AfterShutDown:  func() {},
-	}
-	for _, f := range opts {
-		if f != nil {
-			f(cfg)
-		}
-	}
-
 	cfg.BeforeShutDown()
-	log.Info().Err(server.Shutdown(context.TODO())).Msg("shutting down")
+	log.Info().Err(server.Shutdown(cfg.Ctx)).Msg("shutting down")
+	select {
+	case <-cfg.Ctx.Done():
+		log.Info().Msg("biu~biu~biu~")
+	}
 	cfg.AfterShutDown()
 	log.Info().Msg("server shuts down gracefully")
 }

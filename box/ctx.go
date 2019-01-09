@@ -40,6 +40,16 @@ type Ctx struct {
 	ErrCatcher errc.Catcher
 }
 
+// Req returns http.Request of ctx.
+func (ctx Ctx) Req() *http.Request {
+	return ctx.Request.Request
+}
+
+// Resp returns http.ResponseWriter of ctx.
+func (ctx Ctx) Resp() http.ResponseWriter {
+	return ctx.Response.ResponseWriter
+}
+
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
