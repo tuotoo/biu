@@ -111,6 +111,17 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	return true
 }
 
+// MustLogger, override it to customize the log output of must
+var MustLogger = func(ctx *Ctx, code int, msg string, err error) {
+	log.Info().
+		Str("routeID", ctx.RouteID()).
+		Str("routeSig", ctx.RouteSignature()).
+		Int("code", code).
+		Str("msg", msg).
+		Str(zerolog.ErrorFieldName, fmt.Sprintf("%+v\n", err)).
+		Msg("verify error")
+}
+
 type errHandler struct {
 	ctx  *Ctx
 	code int
@@ -128,13 +139,7 @@ func (e errHandler) Handle(s errc.State, err error) error {
 		}
 		msg = fmt.Sprintf(msg, e.v...)
 	}
-	log.Info().
-		Str("routeID", e.ctx.RouteID()).
-		Str("routeSig", e.ctx.RouteSignature()).
-		Int("code", e.code).
-		Str("msg", msg).
-		Str(zerolog.ErrorFieldName, fmt.Sprintf("%+v\n", err)).
-		Msg("verify error")
+	MustLogger(e.ctx, e.code, msg, err)
 	if e.code == 0 {
 		msg = err.Error()
 	}
