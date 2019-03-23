@@ -2,6 +2,7 @@ package biu
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +16,8 @@ import (
 	"time"
 	_ "unsafe"
 
-	restful "github.com/emicklei/go-restful"
-	restfulspec "github.com/emicklei/go-restful-openapi"
+	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful-openapi"
 	"github.com/gavv/httpexpect"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/box"
@@ -47,36 +48,6 @@ func newPathExpression(path string) (*pathExpression, error)
 
 //go:linkname nameOfFunction github.com/emicklei/go-restful.nameOfFunction
 func nameOfFunction(f interface{}) string
-
-var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
-
-// Container of restful
-type Container struct{ *restful.Container }
-
-// New creates a new restful container.
-func New() Container {
-	return Container{Container: restful.NewContainer()}
-}
-
-// AddServices adds services with namespace for container.
-func (c *Container) AddServices(prefix string, opts opt.ServicesFuncArr, wss ...NS) {
-	addService(prefix, opts, c.Container, wss...)
-}
-
-// AddServices adds services with namespace.
-func AddServices(prefix string, opts opt.ServicesFuncArr, wss ...NS) {
-	addService(prefix, opts, restful.DefaultContainer, wss...)
-}
-
-// Run starts up a web server for container.
-func (c *Container) Run(addr string, opts ...opt.RunFunc) {
-	run(addr, c.Container, opts...)
-}
-
-// Run starts up a web server with default container.
-func Run(addr string, opts ...opt.RunFunc) {
-	run(addr, nil, opts...)
-}
 
 // Route creates a new Route using the RouteBuilder
 // and add to the ordered list of Routes.
@@ -120,14 +91,14 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	}
 
 	if cfg.ID != "" {
-		box.RouteIDMap[mapKey] = cfg.ID
+		ws.routeID[mapKey] = cfg.ID
 	}
 
-	if _, ok := box.RouteErrMap[mapKey]; !ok {
-		box.RouteErrMap[mapKey] = make(map[int]string)
+	if _, ok := ws.errors[mapKey]; !ok {
+		ws.errors[mapKey] = make(map[int]string)
 	}
 	for k, v := range cfg.Errors {
-		box.RouteErrMap[mapKey][k] = v
+		ws.errors[mapKey][k] = v
 		builder = builder.Returns(k, v, nil)
 	}
 
@@ -135,13 +106,34 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 		builder = builder.Metadata("jwt", true)
 	}
 
+	builder.Filter(Filter(func(ctx box.Ctx) {
+		routeID := ws.routeID[ctx.RouteSignature()]
+		ctx.SetAttribute(box.BiuAttrRouteID, routeID)
+		ctx.Next()
+		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
+		if !ok || code == 0 {
+			return
+		}
+		msg, ok := ws.errors[ctx.RouteSignature()][code]
+		if !ok {
+			return
+		}
+		args, ok := ctx.Attribute(box.BiuAttrErrArgs).([]interface{})
+		if ok && len(args) > 0 {
+			msg = fmt.Sprintf(msg, args...)
+		}
+		box.ResponseError(ctx.Resp(), routeID, msg, code)
+		ctx.SetAttribute(box.BiuAttrErrCode, nil)
+		ctx.SetAttribute(box.BiuAttrErrArgs, nil)
+	}))
+
 	ws.WebService.Route(builder)
 }
 
 func addService(
 	prefix string,
 	opts opt.ServicesFuncArr,
-	container *restful.Container,
+	container *Container,
 	wss ...NS,
 ) {
 	for _, v := range wss {
@@ -158,10 +150,14 @@ func addService(
 			ws.Filter(f)
 		}
 		for k, v := range cfg.Errors {
-			box.GlobalErrMap[k] = v
+			container.errors[k] = v
 		}
 
-		v.Controller.WebService(WS{WebService: ws})
+		v.Controller.WebService(WS{
+			WebService: ws,
+			routeID:    make(map[string]string),
+			errors:     make(map[string]map[int]string),
+		})
 		container.Add(ws)
 
 		// add swagger tags to routes of webservice
@@ -175,7 +171,7 @@ func addService(
 				URL:         v.ExternalURL,
 			}
 		}
-		swaggerTags[container.ServeMux] = append(swaggerTags[container.ServeMux], spec.Tag{
+		container.swaggerTags[container.ServeMux] = append(container.swaggerTags[container.ServeMux], spec.Tag{
 			TagProps: tagProps,
 		})
 		routes := ws.Routes()
@@ -212,8 +208,8 @@ func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
+	_ = tc.SetKeepAlive(true)
+	_ = tc.SetKeepAlivePeriod(3 * time.Minute)
 	return tc, nil
 }
 
@@ -291,34 +287,20 @@ type TestServer struct {
 	*httptest.Server
 }
 
-// NewTestServer returns a Test Server.
-func (c *Container) NewTestServer() *TestServer {
-	return &TestServer{
-		Server: httptest.NewServer(c),
-	}
-}
-
-// NewTestServer returns a Test Server.
-func NewTestServer() *TestServer {
-	return &TestServer{
-		Server: httptest.NewServer(restful.DefaultContainer),
-	}
-}
-
 // WithT accept testing.T and returns httpexpect.Expect
 func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
 	return httpexpect.New(t, s.URL)
 }
 
 // LogFilter logs
-//	{
-//		remote_addr,
-//		method,
+// 	{
+// 		remote_addr,
+// 		method,
 // 		uri,
-//		proto,
-//		status_code,
-//		content_length,
-//	}
+// 		proto,
+// 		status_code,
+// 		content_length,
+// 	}
 // for each request
 func LogFilter() restful.FilterFunction {
 	return func(

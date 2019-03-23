@@ -12,24 +12,21 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/json-iterator/go"
 	"github.com/mpvl/errc"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/param"
 )
 
-var (
-	RouteIDMap   = make(map[string]string)
-	RouteErrMap  = make(map[string]map[int]string)
-	GlobalErrMap = make(map[int]string)
-)
-
 // DisableErrHandler disables error handler using errc.
 var DisableErrHandler bool
 
 const (
-	defaultMaxMemory = 32 << 20 // 32 MB
+	defaultMaxMemory  = 32 << 20 // 32 MB
+	BiuAttrErrCode    = "__BIU_ERROR_CODE__"
+	BiuAttrErrArgs    = "__BIU_ERROR_ARGS__"
+	BiuAttrRouteID    = "__BIU_ROUTE_ID__"
+	BiuAttrAuthUserID = "__BIU_AUTH_USER_ID__"
 )
 
 // Ctx wrap *restful.Request and *restful.Response in one struct.
@@ -65,22 +62,13 @@ func (ctx *Ctx) ResponseError(msg string, code int) {
 
 // RouteID returns the RouteID of current route.
 func (ctx *Ctx) RouteID() string {
-	return RouteIDMap[ctx.RouteSignature()]
+	return ctx.Attribute(BiuAttrRouteID).(string)
 }
 
 // RouteSignature returns the signature of current route.
 // Example: /v1/user/login POST
 func (ctx *Ctx) RouteSignature() string {
-	return ctx.SelectedRoutePath() + " " + ctx.Request.Request.Method
-}
-
-// ErrMsg returns the message of a error code in current route.
-func (ctx *Ctx) ErrMsg(code int) string {
-	msg, ok := RouteErrMap[ctx.RouteSignature()][code]
-	if ok {
-		return msg
-	}
-	return GlobalErrMap[code]
+	return ctx.SelectedRoutePath() + " " + ctx.Req().Method
 }
 
 // Redirect replies to the request with a redirect to url.
@@ -93,21 +81,10 @@ func (ctx *Ctx) Redirect(url string, code int) {
 // else it will log the error, make a CommonResp response and return true.
 // if code is 0, it will use err.Error() as CommonResp.message.
 func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
-	msg := ctx.ErrMsg(code)
-	if len(v) > 0 {
-		msg = fmt.Sprintf(msg, v...)
-	}
-	if CheckError(err, log.Info().
-		Str("routeID", ctx.RouteID()).
-		Str("routeSig", ctx.RouteSignature()).
-		Int("code", code).
-		Str("msg", msg)) {
+	if err == nil {
 		return false
 	}
-	if code == 0 {
-		msg = err.Error()
-	}
-	ResponseError(ctx.Response, ctx.RouteID(), msg, code)
+	ctx.ResponseStdErrCode(code, v...)
 	return true
 }
 
@@ -130,20 +107,14 @@ type errHandler struct {
 
 // Handle implements errc.Handle
 func (e errHandler) Handle(s errc.State, err error) error {
-	msg := e.ctx.ErrMsg(e.code)
 	vLen := len(e.v)
 	if vLen > 0 {
 		if f, ok := e.v[vLen-1].(func()); ok {
 			f()
 			e.v = e.v[:vLen-1]
 		}
-		msg = fmt.Sprintf(msg, e.v...)
 	}
-	MustLogger(e.ctx, e.code, msg, err)
-	if e.code == 0 {
-		msg = err.Error()
-	}
-	ResponseError(e.ctx.Response, e.ctx.RouteID(), msg, e.code)
+	e.ctx.ResponseStdErrCode(e.code, e.v...)
 	return err
 }
 
@@ -157,16 +128,13 @@ func (ctx *Ctx) Must(err error, code int, v ...interface{}) {
 // ResponseStdErrCode is a convenience method response a code
 // with msg in Code Desc.
 func (ctx *Ctx) ResponseStdErrCode(code int, v ...interface{}) {
-	msg := ctx.ErrMsg(code)
-	if len(v) > 0 {
-		msg = fmt.Sprintf(msg, v...)
-	}
-	ResponseError(ctx.Response, ctx.RouteID(), msg, code)
+	ctx.SetAttribute(BiuAttrErrCode, code)
+	ctx.SetAttribute(BiuAttrErrArgs, v)
 }
 
 // UserID returns UserID stored in attribute.
 func (ctx *Ctx) UserID() string {
-	userID, ok := ctx.Attribute("UserID").(string)
+	userID, ok := ctx.Attribute(BiuAttrAuthUserID).(string)
 	if !ok {
 		return ""
 	}
@@ -226,10 +194,7 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 
 // Query reads query parameter with name.
 func (ctx *Ctx) Query(name string) param.Parameter {
-	if ctx.Req().Form == nil {
-		ctx.Req().ParseMultipartForm(defaultMaxMemory)
-	}
-	return param.NewParameter(ctx.Req().Form[name], nil)
+	return param.NewParameter(ctx.QueryParameters(name), nil)
 }
 
 // Form reads form parameter with name.
@@ -309,40 +274,6 @@ func ResponseError(w http.ResponseWriter, routeID string, msg string, code int) 
 	CommonResponse(w, routeID, code, msg, nil)
 }
 
-// ContainsError is a convenience method to check error is nil.
-// If error is nil, it will return false,
-// else it will log the error, make a CommonResp response and return true.
-// if code is 0, it will use err.Error() as CommonResp.message.
-func ContainsError(w http.ResponseWriter, RouteSignature string, err error, code int) bool {
-	msg, ok := RouteErrMap[RouteSignature][code]
-	if !ok {
-		msg = GlobalErrMap[code]
-	}
-	if CheckError(err, log.Info().Int("code", code).Str("msg", msg)) {
-		return false
-	}
-	if code == 0 {
-		msg = err.Error()
-	}
-	ResponseError(w, RouteIDMap[RouteSignature], msg, code)
-	return true
-}
-
-// CheckError is a convenience method to check error is nil.
-// If error is nil, it will return true,
-// else it will log the error and return false
-func CheckError(err error, log *log.Wrap) bool {
-	if err == nil {
-		return true
-	}
-	if log != nil {
-		log.Str(zerolog.ErrorFieldName,
-			fmt.Sprintf("%+v", errors.WithStack(err))).
-			Msg("verify error")
-	}
-	return false
-}
-
 // CommonResponse is a response func.
 // just replace it if you'd like to custom response.
 var CommonResponse = func(w http.ResponseWriter,
@@ -376,4 +307,8 @@ func (ctx *Ctx) IsLogin() (userID string, err error) {
 		return "", err
 	}
 	return auth.CheckToken(tokenString)
+}
+
+func (ctx *Ctx) Next() {
+	ctx.ProcessFilter(ctx.Request, ctx.Response)
 }

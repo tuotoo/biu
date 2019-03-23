@@ -60,7 +60,7 @@ func AuthFilter(code int) restful.FilterFunction {
 		if ctx.ContainsError(err, code) {
 			return
 		}
-		ctx.SetAttribute("UserID", userID)
+		ctx.SetAttribute(box.BiuAttrAuthUserID, userID)
 		ctx.ProcessFilter(ctx.Request, ctx.Response)
 	})
 }
