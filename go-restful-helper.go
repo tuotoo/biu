@@ -303,20 +303,16 @@ func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
 // 	}
 // for each request
 func LogFilter() restful.FilterFunction {
-	return func(
-		req *restful.Request,
-		resp *restful.Response,
-		chain *restful.FilterChain,
-	) {
+	return Filter(func(ctx box.Ctx) {
 		start := time.Now()
-		chain.ProcessFilter(req, resp)
+		ctx.Next()
 		log.Info().
-			Str("remote_addr", strings.Split(req.Request.RemoteAddr, ":")[0]).
-			Str("method", req.Request.Method).
-			Str("uri", req.Request.URL.RequestURI()).
-			Str("proto", req.Request.Proto).
-			Int("status_code", resp.StatusCode()).
+			Str("remote_addr", strings.Split(ctx.Req().RemoteAddr, ":")[0]).
+			Str("method", ctx.Req().Method).
+			Str("uri", ctx.Req().URL.RequestURI()).
+			Str("proto", ctx.Req().Proto).
+			Int("status_code", ctx.Response.StatusCode()).
 			Dur("dur", time.Since(start)).
-			Int("content_length", resp.ContentLength()).Msg("req")
-	}
+			Int("content_length", ctx.Response.ContentLength()).Msg("req")
+	})
 }

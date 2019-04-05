@@ -145,6 +145,7 @@ func (i *Instance) CheckToken(token string) (userID string, err error) {
 	return uid, nil
 }
 
+// CheckToken accept a jwt token and returns the uid in token with default instance.
 func CheckToken(token string) (userID string, err error) {
 	return DefaultInstance.CheckToken(token)
 }

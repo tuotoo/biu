@@ -18,9 +18,6 @@ import (
 	"github.com/tuotoo/biu/param"
 )
 
-// DisableErrHandler disables error handler using errc.
-var DisableErrHandler bool
-
 const (
 	defaultMaxMemory  = 32 << 20 // 32 MB
 	BiuAttrErrCode    = "__BIU_ERROR_CODE__"
@@ -73,7 +70,7 @@ func (ctx *Ctx) RouteSignature() string {
 
 // Redirect replies to the request with a redirect to url.
 func (ctx *Ctx) Redirect(url string, code int) {
-	http.Redirect(ctx.ResponseWriter, ctx.Request.Request, url, code)
+	http.Redirect(ctx.Resp(), ctx.Req(), url, code)
 }
 
 // ContainsError is a convenience method to check error is nil.
@@ -120,9 +117,7 @@ func (e errHandler) Handle(s errc.State, err error) error {
 
 // Must causes a return from a function if err is not nil.
 func (ctx *Ctx) Must(err error, code int, v ...interface{}) {
-	if !DisableErrHandler {
-		ctx.ErrCatcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
-	}
+	ctx.ErrCatcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
 }
 
 // ResponseStdErrCode is a convenience method response a code
@@ -143,8 +138,7 @@ func (ctx *Ctx) UserID() string {
 
 // IP returns the IP address of request.
 func (ctx *Ctx) IP() string {
-	req := ctx.Request.Request
-	ra := req.RemoteAddr
+	ra := ctx.Req().RemoteAddr
 	if ip := ctx.HeaderParameter("X-Forwarded-For"); ip != "" {
 		ra = strings.Split(ip, ", ")[0]
 	} else if ip := ctx.HeaderParameter("X-Real-IP"); ip != "" {
@@ -157,11 +151,11 @@ func (ctx *Ctx) IP() string {
 
 // Host returns the host of request.
 func (ctx *Ctx) Host() string {
-	if ctx.Request.Request.Host != "" {
-		if hostPart, _, err := net.SplitHostPort(ctx.Request.Request.Host); err == nil {
+	if ctx.Req().Host != "" {
+		if hostPart, _, err := net.SplitHostPort(ctx.Req().Host); err == nil {
 			return hostPart
 		}
-		return ctx.Request.Request.Host
+		return ctx.Req().Host
 	}
 	return "localhost"
 }
@@ -176,17 +170,17 @@ func (ctx *Ctx) Proxy() []string {
 
 // BodyParameterValues returns the array of parameter in a POST form body.
 func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
-	err := ctx.Request.Request.ParseForm()
+	err := ctx.Req().ParseForm()
 	if err != nil {
 		return []string{}, err
 	}
-	if ctx.Request.Request.PostForm == nil {
-		err = ctx.Request.Request.ParseMultipartForm(defaultMaxMemory)
+	if ctx.Req().PostForm == nil {
+		err = ctx.Req().ParseMultipartForm(defaultMaxMemory)
 		if err != nil {
 			return []string{}, err
 		}
 	}
-	if vs := ctx.Request.Request.PostForm[name]; len(vs) > 0 {
+	if vs := ctx.Req().PostForm[name]; len(vs) > 0 {
 		return vs, nil
 	}
 	return []string{}, nil
@@ -221,7 +215,7 @@ func (ctx *Ctx) Header(name string) param.Parameter {
 // It decodes the json payload into the struct specified as a pointer.
 // It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
 func (ctx *Ctx) Bind(obj interface{}) error {
-	b := binding.Default(ctx.Request.Request.Method, ctx.Request.HeaderParameter("Content-Type"))
+	b := binding.Default(ctx.Req().Method, ctx.Request.HeaderParameter("Content-Type"))
 	return ctx.BindWith(obj, b)
 }
 
@@ -233,7 +227,7 @@ func (ctx *Ctx) MustBind(obj interface{}, code int, v ...interface{}) {
 // BindWith binds the passed struct pointer using the specified binding engine.
 // See the binding package.
 func (ctx *Ctx) BindWith(obj interface{}, b binding.Binding) error {
-	return b.Bind(ctx.Request.Request, obj)
+	return b.Bind(ctx.Req(), obj)
 }
 
 // MustBindWith is a shortcur for ctx.Must(ctx.BindWith(obj, b), code, v...)
@@ -300,13 +294,13 @@ func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
 
 // IsLogin gets JWT token in request by OAuth2Extractor,
 // and parse it with CheckToken.
-func (ctx *Ctx) IsLogin() (userID string, err error) {
-	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Request.Request)
+func (ctx *Ctx) IsLogin(i auth.Instance) (userID string, err error) {
+	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Req())
 	if err != nil {
 		log.Info().Err(err).Msg("no auth header")
 		return "", err
 	}
-	return auth.CheckToken(tokenString)
+	return i.CheckToken(tokenString)
 }
 
 func (ctx *Ctx) Next() {

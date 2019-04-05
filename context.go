@@ -5,6 +5,7 @@ import (
 
 	"github.com/emicklei/go-restful"
 	"github.com/mpvl/errc"
+	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
 )
 
@@ -15,11 +16,9 @@ func Handle(f func(ctx box.Ctx)) restful.RouteFunction {
 			Request:  request,
 			Response: response,
 		}
-		if !box.DisableErrHandler {
-			e := errc.Catch(new(error))
-			defer e.Handle()
-			c.ErrCatcher = e
-		}
+		e := errc.Catch(new(error))
+		defer e.Handle()
+		c.ErrCatcher = e
 		f(c)
 	}
 }
@@ -33,11 +32,9 @@ func Filter(f func(ctx box.Ctx)) restful.FilterFunction {
 			Response:    response,
 			FilterChain: chain,
 		}
-		if !box.DisableErrHandler {
-			e := errc.Catch(new(error))
-			defer e.Handle()
-			c.ErrCatcher = e
-		}
+		e := errc.Catch(new(error))
+		defer e.Handle()
+		c.ErrCatcher = e
 		f(c)
 	}
 }
@@ -54,13 +51,13 @@ func WrapHandler(f func(ctx box.Ctx)) http.HandlerFunc {
 
 // AuthFilter checks if request contains JWT,
 // and sets UserID in Attribute if exists,
-func AuthFilter(code int) restful.FilterFunction {
+func AuthFilter(i auth.Instance, code int) restful.FilterFunction {
 	return Filter(func(ctx box.Ctx) {
-		userID, err := ctx.IsLogin()
+		userID, err := ctx.IsLogin(i)
 		if ctx.ContainsError(err, code) {
 			return
 		}
 		ctx.SetAttribute(box.BiuAttrAuthUserID, userID)
-		ctx.ProcessFilter(ctx.Request, ctx.Response)
+		ctx.Next()
 	})
 }
