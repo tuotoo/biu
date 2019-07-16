@@ -226,10 +226,7 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 
 // Query reads query parameter with name.
 func (ctx *Ctx) Query(name string) param.Parameter {
-	if ctx.Req().Form == nil {
-		ctx.Req().ParseMultipartForm(defaultMaxMemory)
-	}
-	return param.NewParameter(ctx.Req().Form[name], nil)
+	return param.NewParameter(ctx.QueryParameters(name), nil)
 }
 
 // Form reads form parameter with name.
