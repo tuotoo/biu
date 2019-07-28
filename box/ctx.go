@@ -287,10 +287,7 @@ func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
 func (ctx *Ctx) IsLogin(i *auth.Instance) (userID string, err error) {
 	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Req())
 	if err != nil {
-		ctx.Logger.Info(log.BiuInternalInfo{
-			Err: xerrors.Errorf("no auth header: %w", err),
-		})
-		return "", err
+		return "", xerrors.Errorf("no auth header: %w", err)
 	}
 	return i.CheckToken(tokenString)
 }

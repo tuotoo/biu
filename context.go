@@ -23,9 +23,7 @@ func WrapHandler(f func(ctx box.Ctx)) http.HandlerFunc {
 func AuthFilter(i *auth.Instance, code int) restful.FilterFunction {
 	return DefaultContainer.FilterFunc(func(ctx box.Ctx) {
 		userID, err := ctx.IsLogin(i)
-		if ctx.ContainsError(err, code) {
-			return
-		}
+		ctx.Must(err, code)
 		ctx.SetAttribute(box.BiuAttrAuthUserID, userID)
 		ctx.Next()
 	})

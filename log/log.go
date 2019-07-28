@@ -65,7 +65,7 @@ func (dl DefaultLogger) toStr(i interface{}) (string, error) {
 			}
 			s = append(s, fmt.Sprintf("[INFO] %s", strings.Join(extras, "\t")))
 		}
-		return strings.Join(s, "\t"), nil
+		return strings.Join(s, "\n"), nil
 	case string:
 		return v, nil
 	case error:
