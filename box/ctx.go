@@ -1,7 +1,6 @@
 package box
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -12,14 +11,15 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/json-iterator/go"
 	"github.com/mpvl/errc"
-	"github.com/rs/zerolog"
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/param"
+	"golang.org/x/xerrors"
 )
 
 const (
 	defaultMaxMemory  = 32 << 20 // 32 MB
+	BiuAttrErr        = "__BIU_ERROR__"
 	BiuAttrErrCode    = "__BIU_ERROR_CODE__"
 	BiuAttrErrArgs    = "__BIU_ERROR_ARGS__"
 	BiuAttrRouteID    = "__BIU_ROUTE_ID__"
@@ -32,6 +32,7 @@ type Ctx struct {
 	*restful.Response
 	*restful.FilterChain
 	ErrCatcher errc.Catcher
+	Logger     log.ILogger
 }
 
 // Req returns http.Request of ctx.
@@ -48,13 +49,39 @@ func (ctx Ctx) Resp() http.ResponseWriter {
 // for writing a value wrap in CommonResp as JSON.
 // It uses jsoniter for marshalling the value.
 func (ctx *Ctx) ResponseJSON(v interface{}) {
-	CommonResponse(ctx.Response, ctx.RouteID(), 0, "", v)
+	err := writeJSON(ctx.Response, http.StatusOK, CommonResp{
+		Data:    v,
+		RouteID: ctx.RouteID(),
+	})
+	if err != nil {
+		ctx.Logger.Info(log.BiuInternalInfo{
+			Err: err,
+			Extras: map[string]interface{}{
+				"Data":    v,
+				"RouteID": ctx.RouteID(),
+			},
+		})
+	}
 }
 
 // ResponseError is a convenience method to response an error code and message.
 // It uses jsoniter for marshalling the value.
-func (ctx *Ctx) ResponseError(msg string, code int) {
-	CommonResponse(ctx.Response, ctx.RouteID(), code, msg, nil)
+func (ctx *Ctx) ResponseError(code int, msg string) {
+	err := writeJSON(ctx.Response, http.StatusOK, CommonResp{
+		Code:    code,
+		Message: msg,
+		RouteID: ctx.RouteID(),
+	})
+	if err != nil {
+		ctx.Logger.Info(log.BiuInternalInfo{
+			Err: err,
+			Extras: map[string]interface{}{
+				"Code":    code,
+				"Msg":     msg,
+				"RouteID": ctx.RouteID(),
+			},
+		})
+	}
 }
 
 // RouteID returns the RouteID of current route.
@@ -85,17 +112,6 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 	return true
 }
 
-// MustLogger, override it to customize the log output of must
-var MustLogger = func(ctx *Ctx, code int, msg string, err error) {
-	log.Info().
-		Str("routeID", ctx.RouteID()).
-		Str("routeSig", ctx.RouteSignature()).
-		Int("code", code).
-		Str("msg", msg).
-		Str(zerolog.ErrorFieldName, fmt.Sprintf("%+v\n", err)).
-		Msg("verify error")
-}
-
 type errHandler struct {
 	ctx  *Ctx
 	code int
@@ -112,6 +128,7 @@ func (e errHandler) Handle(s errc.State, err error) error {
 		}
 	}
 	e.ctx.ResponseStdErrCode(e.code, e.v...)
+	e.ctx.SetAttribute(BiuAttrErr, err)
 	return err
 }
 
@@ -255,33 +272,6 @@ func (ctx *Ctx) MustBindQuery(obj interface{}, code int, v ...interface{}) {
 	ctx.Must(ctx.BindQuery(obj), code, v...)
 }
 
-// ResponseJSON is a convenience method
-// for writing a value wrap in CommonResp as JSON.
-// It uses jsoniter for marshalling the value.
-func ResponseJSON(w http.ResponseWriter, routeID string, v interface{}) {
-	CommonResponse(w, routeID, 0, "", v)
-}
-
-// ResponseError is a convenience method to response an error code and message.
-// It uses jsoniter for marshalling the value.
-func ResponseError(w http.ResponseWriter, routeID string, msg string, code int) {
-	CommonResponse(w, routeID, code, msg, nil)
-}
-
-// CommonResponse is a response func.
-// just replace it if you'd like to custom response.
-var CommonResponse = func(w http.ResponseWriter,
-	routeID string, code int, message string, data interface{}) {
-	if err := writeJSON(w, http.StatusOK, CommonResp{
-		Code:    code,
-		Message: message,
-		Data:    data,
-		RouteID: routeID,
-	}); err != nil {
-		log.Warn().Err(err).Msg("json encode")
-	}
-}
-
 func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
 	if v == nil {
 		resp.WriteHeader(status)
@@ -294,10 +284,12 @@ func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
 
 // IsLogin gets JWT token in request by OAuth2Extractor,
 // and parse it with CheckToken.
-func (ctx *Ctx) IsLogin(i auth.Instance) (userID string, err error) {
+func (ctx *Ctx) IsLogin(i *auth.Instance) (userID string, err error) {
 	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Req())
 	if err != nil {
-		log.Info().Err(err).Msg("no auth header")
+		ctx.Logger.Info(log.BiuInternalInfo{
+			Err: xerrors.Errorf("no auth header: %w", err),
+		})
 		return "", err
 	}
 	return i.CheckToken(tokenString)

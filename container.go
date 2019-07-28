@@ -2,29 +2,49 @@ package biu
 
 import (
 	"fmt"
-	"github.com/go-openapi/spec"
-	"github.com/tuotoo/biu/box"
 	"net/http"
 	"net/http/httptest"
 
 	"github.com/emicklei/go-restful"
+	"github.com/go-openapi/spec"
+	"github.com/mpvl/errc"
+	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
-var DefaultContainer = New()
+var DefaultContainer = New(restful.DefaultContainer)
 
 // Container of restful
 type Container struct {
 	*restful.Container
 	swaggerTags map[*http.ServeMux][]spec.Tag
 	errors      map[int]string
+	routeID     map[string]string
+	logger      log.ILogger
 }
 
 // New creates a new restful container.
-func New() *Container {
-	container := restful.NewContainer()
+func New(container ...*restful.Container) *Container {
+	var rc *restful.Container
+	if len(container) > 0 {
+		rc = container[0]
+	} else {
+		rc = restful.NewContainer()
+	}
+
 	errors := make(map[int]string)
-	container.Filter(Filter(func(ctx box.Ctx) {
+	routeMap := make(map[string]string)
+	c := &Container{
+		Container:   rc,
+		swaggerTags: make(map[*http.ServeMux][]spec.Tag),
+		routeID:     routeMap,
+		errors:      errors,
+		logger:      log.DefaultLogger{},
+	}
+	c.Filter(c.FilterFunc(func(ctx box.Ctx) {
+		routeID := routeMap[ctx.RouteSignature()]
+		ctx.SetAttribute(box.BiuAttrRouteID, routeID)
 		ctx.Next()
 		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
 		if !ok || code == 0 {
@@ -35,14 +55,21 @@ func New() *Container {
 		if ok && len(args) > 0 {
 			msg = fmt.Sprintf(msg, args...)
 		}
-		routeID := ctx.Attribute(box.BiuAttrRouteID).(string)
-		box.ResponseError(ctx.Resp(), routeID, msg, code)
+		logInfo := log.BiuInternalInfo{
+			Extras: map[string]interface{}{
+				"routeID":  ctx.RouteID(),
+				"routeSig": ctx.RouteSignature(),
+				"code":     code,
+				"msg":      msg,
+			},
+		}
+		if err, ok := ctx.Attribute(box.BiuAttrErr).(error); ok && err != nil {
+			logInfo.Err = err
+		}
+		ctx.Logger.Info(logInfo)
+		ctx.ResponseError(code, msg)
 	}))
-	return &Container{
-		Container:   container,
-		swaggerTags: make(map[*http.ServeMux][]spec.Tag),
-		errors:      errors,
-	}
+	return c
 }
 
 // AddServices adds services with namespace for container.
@@ -75,4 +102,35 @@ func (c *Container) NewTestServer() *TestServer {
 // NewTestServer returns a Test Server.
 func NewTestServer() *TestServer {
 	return DefaultContainer.NewTestServer()
+}
+
+func (c *Container) Handle(f func(ctx box.Ctx)) restful.RouteFunction {
+	return func(request *restful.Request, response *restful.Response) {
+		c := box.Ctx{
+			Request:  request,
+			Response: response,
+			Logger:   c.logger,
+		}
+		e := errc.Catch(new(error))
+		defer e.Handle()
+		c.ErrCatcher = e
+		f(c)
+	}
+}
+
+// Filter transform a biu handler to a restful.FilterFunction
+func (c *Container) FilterFunc(f func(ctx box.Ctx)) restful.FilterFunction {
+	return func(request *restful.Request, response *restful.Response,
+		chain *restful.FilterChain) {
+		c := box.Ctx{
+			Request:     request,
+			Response:    response,
+			FilterChain: chain,
+			Logger:      c.logger,
+		}
+		e := errc.Catch(new(error))
+		defer e.Handle()
+		c.ErrCatcher = e
+		f(c)
+	}
 }

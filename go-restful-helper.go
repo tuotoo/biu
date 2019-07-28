@@ -2,7 +2,6 @@ package biu
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +22,7 @@ import (
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -61,7 +61,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 			f(cfg)
 		}
 	}
-	builder = builder.To(Handle(cfg.To))
+	builder = builder.To(ws.Container.Handle(cfg.To))
 	if cfg.ID != "" {
 		builder = builder.Operation(cfg.ID)
 	} else {
@@ -79,7 +79,10 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	if AutoGenPathDoc && cfg.EnableAutoPathDoc {
 		exp, err := newPathExpression(p2)
 		if err != nil {
-			log.Fatal().Err(err).Str("path", p2).Msg("invalid path")
+			ws.Container.logger.Fatal(log.BiuInternalInfo{
+				Err:    xerrors.Errorf("invalid path: %s", err),
+				Extras: map[string]interface{}{"path": p2},
+			})
 		}
 		for i, v := range exp.VarNames {
 			desc := v
@@ -91,7 +94,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	}
 
 	if cfg.ID != "" {
-		ws.routeID[mapKey] = cfg.ID
+		ws.Container.routeID[mapKey] = cfg.ID
 	}
 
 	if _, ok := ws.errors[mapKey]; !ok {
@@ -105,27 +108,6 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	if cfg.Auth {
 		builder = builder.Metadata("jwt", true)
 	}
-
-	builder.Filter(Filter(func(ctx box.Ctx) {
-		routeID := ws.routeID[ctx.RouteSignature()]
-		ctx.SetAttribute(box.BiuAttrRouteID, routeID)
-		ctx.Next()
-		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
-		if !ok || code == 0 {
-			return
-		}
-		msg, ok := ws.errors[ctx.RouteSignature()][code]
-		if !ok {
-			return
-		}
-		args, ok := ctx.Attribute(box.BiuAttrErrArgs).([]interface{})
-		if ok && len(args) > 0 {
-			msg = fmt.Sprintf(msg, args...)
-		}
-		box.ResponseError(ctx.Resp(), routeID, msg, code)
-		ctx.SetAttribute(box.BiuAttrErrCode, nil)
-		ctx.SetAttribute(box.BiuAttrErrArgs, nil)
-	}))
 
 	ws.WebService.Route(builder)
 }
@@ -155,7 +137,7 @@ func addService(
 
 		v.Controller.WebService(WS{
 			WebService: ws,
-			routeID:    make(map[string]string),
+			Container:  container,
 			errors:     make(map[string]map[int]string),
 		})
 		container.Add(ws)
@@ -176,9 +158,10 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			log.Info().Str("path", r.Path).
-				Str("method", r.Method).
-				Msg("routers")
+			container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
+				"PATH":   r.Path,
+				"METHOD": r.Method,
+			}})
 			if routes[ri].Metadata == nil {
 				routes[ri].Metadata = make(map[string]interface{})
 			}
@@ -235,7 +218,7 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
 }
 
-func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
+func run(addr string, c *Container, opts ...opt.RunFunc) {
 	nCtx, nCancel := context.WithCancel(context.Background())
 	cfg := &opt.Run{
 		BeforeShutDown: func() {},
@@ -251,35 +234,43 @@ func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: handler,
+		Handler: c,
 	}
 	addrChan := make(chan string)
 
 	go func() {
-		log.Error().Err(ListenAndServe(server, addrChan)).Msg("listening")
+		c.logger.Info(log.BiuInternalInfo{
+			Err: xerrors.Errorf("listen and serve: %w", ListenAndServe(server, addrChan)),
+		})
 		if cfg.Cancel != nil {
 			cfg.Cancel()
 		}
 	}()
 	select {
 	case addr := <-addrChan:
-		log.Info().Str("addr", addr).Msg("listening")
+		c.logger.Info(log.BiuInternalInfo{
+			Extras: map[string]interface{}{
+				"Listening Addr": addr,
+			},
+		})
 	case <-time.After(time.Second):
-		log.Fatal().Msg("something went wrong when starting the server")
+		c.logger.Fatal(log.BiuInternalInfo{
+			Err: xerrors.New("start server timeout"),
+		})
 	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	log.Info().Interface("ch", <-ch).Msg("signal receive")
+	c.logger.Info(log.BiuInternalInfo{
+		Extras: map[string]interface{}{
+			"Received Signal": <-ch,
+		},
+	})
 
 	cfg.BeforeShutDown()
-	log.Info().Err(server.Shutdown(cfg.Ctx)).Msg("shutting down")
-	select {
-	case <-cfg.Ctx.Done():
-		log.Info().Msg("biu~biu~biu~")
-	}
+	c.logger.Info(server.Shutdown(cfg.Ctx))
+	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
-	log.Info().Msg("server shuts down gracefully")
 }
 
 // TestServer wraps a httptest.Server
@@ -303,16 +294,19 @@ func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
 // 	}
 // for each request
 func LogFilter() restful.FilterFunction {
-	return Filter(func(ctx box.Ctx) {
+	return DefaultContainer.FilterFunc(func(ctx box.Ctx) {
 		start := time.Now()
 		ctx.Next()
-		log.Info().
-			Str("remote_addr", strings.Split(ctx.Req().RemoteAddr, ":")[0]).
-			Str("method", ctx.Req().Method).
-			Str("uri", ctx.Req().URL.RequestURI()).
-			Str("proto", ctx.Req().Proto).
-			Int("status_code", ctx.Response.StatusCode()).
-			Dur("dur", time.Since(start)).
-			Int("content_length", ctx.Response.ContentLength()).Msg("req")
+		ctx.Logger.Info(log.BiuInternalInfo{
+			Extras: map[string]interface{}{
+				"remote_addr":    strings.Split(ctx.Req().RemoteAddr, ":")[0],
+				"method":         ctx.Req().Method,
+				"uri":            ctx.Req().URL.RequestURI(),
+				"proto":          ctx.Req().Proto,
+				"status_code":    ctx.Response.StatusCode(),
+				"dur":            time.Since(start),
+				"content_length": ctx.Response.ContentLength(),
+			},
+		})
 	})
 }
