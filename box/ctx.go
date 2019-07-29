@@ -284,12 +284,15 @@ func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
 
 // IsLogin gets JWT token in request by OAuth2Extractor,
 // and parse it with CheckToken.
-func (ctx *Ctx) IsLogin(i *auth.Instance) (userID string, err error) {
+func (ctx *Ctx) IsLogin(i ...*auth.Instance) (userID string, err error) {
 	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Req())
 	if err != nil {
 		return "", xerrors.Errorf("no auth header: %w", err)
 	}
-	return i.CheckToken(tokenString)
+	if len(i) > 0 {
+		return i[0].CheckToken(tokenString)
+	}
+	return auth.DefaultInstance.CheckToken(tokenString)
 }
 
 func (ctx *Ctx) Next() {
