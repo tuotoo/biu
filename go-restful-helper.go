@@ -299,7 +299,7 @@ func LogFilter() restful.FilterFunction {
 		ctx.Next()
 		ctx.Logger.Info(log.BiuInternalInfo{
 			Extras: map[string]interface{}{
-				"remote_addr":    strings.Split(ctx.Req().RemoteAddr, ":")[0],
+				"remote_addr":    ctx.IP(),
 				"method":         ctx.Req().Method,
 				"uri":            ctx.Req().URL.RequestURI(),
 				"proto":          ctx.Req().Proto,
