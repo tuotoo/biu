@@ -6,7 +6,7 @@ require (
 	github.com/ajg/form v0.0.0-20160822230020-523a5da1a92f // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/emicklei/go-restful v2.8.0+incompatible
+	github.com/emicklei/go-restful v2.9.6+incompatible
 	github.com/emicklei/go-restful-openapi v1.0.0
 	github.com/fatih/structs v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
@@ -22,7 +22,7 @@ require (
 	github.com/gopherjs/gopherjs v0.0.0-20180820052304-89baedc74dd7 // indirect
 	github.com/hpcloud/tail v1.0.0 // indirect
 	github.com/imkira/go-interpol v1.1.0 // indirect
-	github.com/json-iterator/go v0.0.0-20180806060727-1624edc4454b
+	github.com/json-iterator/go v0.0.0-20180806060727-1624edc4454b // indirect
 	github.com/jtolds/gls v4.2.1+incompatible // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/klauspost/compress v1.4.0 // indirect

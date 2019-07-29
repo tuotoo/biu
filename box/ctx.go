@@ -9,7 +9,6 @@ import (
 	"github.com/dgrijalva/jwt-go/request"
 	"github.com/emicklei/go-restful"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/json-iterator/go"
 	"github.com/mpvl/errc"
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/log"
@@ -47,9 +46,8 @@ func (ctx Ctx) Resp() http.ResponseWriter {
 
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
-// It uses jsoniter for marshalling the value.
 func (ctx *Ctx) ResponseJSON(v interface{}) {
-	err := writeJSON(ctx.Response, http.StatusOK, CommonResp{
+	err := ctx.WriteAsJson(CommonResp{
 		Data:    v,
 		RouteID: ctx.RouteID(),
 	})
@@ -65,9 +63,8 @@ func (ctx *Ctx) ResponseJSON(v interface{}) {
 }
 
 // ResponseError is a convenience method to response an error code and message.
-// It uses jsoniter for marshalling the value.
 func (ctx *Ctx) ResponseError(code int, msg string) {
-	err := writeJSON(ctx.Response, http.StatusOK, CommonResp{
+	err := ctx.WriteAsJson(CommonResp{
 		Code:    code,
 		Message: msg,
 		RouteID: ctx.RouteID(),
@@ -270,16 +267,6 @@ func (ctx *Ctx) BindQuery(obj interface{}) error {
 // MustBindQuery is a shortcur for ctx.Must(ctx.BindQuery(obj), code, v...)
 func (ctx *Ctx) MustBindQuery(obj interface{}, code int, v ...interface{}) {
 	ctx.Must(ctx.BindQuery(obj), code, v...)
-}
-
-func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
-	if v == nil {
-		resp.WriteHeader(status)
-		return nil
-	}
-	resp.Header().Set(restful.HEADER_ContentType, restful.MIME_JSON)
-	resp.WriteHeader(status)
-	return jsoniter.NewEncoder(resp).Encode(v)
 }
 
 // IsLogin gets JWT token in request by OAuth2Extractor,
