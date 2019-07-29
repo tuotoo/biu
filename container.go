@@ -7,7 +7,6 @@ import (
 
 	"github.com/emicklei/go-restful"
 	"github.com/go-openapi/spec"
-	"github.com/mpvl/errc"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
@@ -105,32 +104,10 @@ func NewTestServer() *TestServer {
 }
 
 func (c *Container) Handle(f func(ctx box.Ctx)) restful.RouteFunction {
-	return func(request *restful.Request, response *restful.Response) {
-		c := box.Ctx{
-			Request:  request,
-			Response: response,
-			Logger:   c.logger,
-		}
-		e := errc.Catch(new(error))
-		defer e.Handle()
-		c.ErrCatcher = e
-		f(c)
-	}
+	return HandleWithLogger(f, c.logger)
 }
 
 // Filter transform a biu handler to a restful.FilterFunction
 func (c *Container) FilterFunc(f func(ctx box.Ctx)) restful.FilterFunction {
-	return func(request *restful.Request, response *restful.Response,
-		chain *restful.FilterChain) {
-		c := box.Ctx{
-			Request:     request,
-			Response:    response,
-			FilterChain: chain,
-			Logger:      c.logger,
-		}
-		e := errc.Catch(new(error))
-		defer e.Handle()
-		c.ErrCatcher = e
-		f(c)
-	}
+	return FilterWithLogger(f, c.logger)
 }
