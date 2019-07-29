@@ -20,6 +20,7 @@ const (
 	defaultMaxMemory  = 32 << 20 // 32 MB
 	BiuAttrErr        = "__BIU_ERROR__"
 	BiuAttrErrCode    = "__BIU_ERROR_CODE__"
+	BiuAttrErrMsg     = "__BIU_ERROR_MESSAGE__"
 	BiuAttrErrArgs    = "__BIU_ERROR_ARGS__"
 	BiuAttrRouteID    = "__BIU_ROUTE_ID__"
 	BiuAttrAuthUserID = "__BIU_AUTH_USER_ID__"

@@ -109,6 +109,19 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 		builder = builder.Metadata("jwt", true)
 	}
 
+	builder.Filter(Filter(func(ctx box.Ctx) {
+		ctx.Next()
+		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
+		if !ok || code == 0 {
+			return
+		}
+		msg, ok := ws.errors[ctx.RouteSignature()][code]
+		if !ok {
+			return
+		}
+		ctx.SetAttribute(box.BiuAttrErrMsg, msg)
+	}))
+
 	ws.WebService.Route(builder)
 }
 

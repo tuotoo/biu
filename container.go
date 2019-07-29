@@ -49,7 +49,10 @@ func New(container ...*restful.Container) *Container {
 		if !ok || code == 0 {
 			return
 		}
-		msg := errors[code]
+		msg, ok := ctx.Attribute(box.BiuAttrErrMsg).(string)
+		if !ok {
+			msg = errors[code]
+		}
 		args, ok := ctx.Attribute(box.BiuAttrErrArgs).([]interface{})
 		if ok && len(args) > 0 {
 			msg = fmt.Sprintf(msg, args...)
