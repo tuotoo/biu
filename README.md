@@ -29,4 +29,6 @@ All our projects follow the [GitFlow branching model](http://nvie.com/posts/a-su
 - [errc](https://github.com/mpvl/errc)
 - [zerolog](https://github.com/rs/zerolog)
 - [httpexpect](https://github.com/gavv/httpexpect)
+- [easyjson](https://github.com/mailru/easyjson)
+- [pocket](https://github.com/Southclaws/pocket)
 - ...and many more Open Source *Cool* Go Projects :star2:

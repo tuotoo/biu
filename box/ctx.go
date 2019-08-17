@@ -26,6 +26,8 @@ const (
 	BiuAttrAuthUserID = "__BIU_AUTH_USER_ID__"
 )
 
+const CtxSignature = "github.com/tuotoo/biu/box.Ctx"
+
 // Ctx wrap *restful.Request and *restful.Response in one struct.
 type Ctx struct {
 	*restful.Request

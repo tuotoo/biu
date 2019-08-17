@@ -76,6 +76,26 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	method := elm.FieldByName("httpMethod").String()
 	mapKey := path + " " + method
 
+	for _, v := range cfg.Params {
+		var param *restful.Parameter
+		switch method {
+		case http.MethodGet, http.MethodDelete:
+			param = ws.QueryParameter(v.Name, v.Desc)
+		case http.MethodPost, http.MethodPut, http.MethodPatch:
+			param = ws.FormParameter(v.Name, v.Desc)
+			if v.Type == "file" {
+				builder = builder.Consumes(MIME_FILE_FORM)
+			}
+		default:
+			continue
+		}
+		param = param.DataType(v.Type).DataFormat(v.Format)
+		if v.IsMulti {
+			param = param.AllowMultiple(true).CollectionFormat("multi")
+		}
+		builder = builder.Param(param)
+	}
+
 	if AutoGenPathDoc && cfg.EnableAutoPathDoc {
 		exp, err := newPathExpression(p2)
 		if err != nil {
