@@ -187,12 +187,13 @@ func (ctx *Ctx) Proxy() []string {
 
 // BodyParameterValues returns the array of parameter in a POST form body.
 func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
-	err := ctx.Req().ParseForm()
-	if err != nil {
-		return []string{}, err
-	}
-	if ctx.Req().PostForm == nil {
-		err = ctx.Req().ParseMultipartForm(defaultMaxMemory)
+	if strings.HasPrefix(ctx.Req().Header.Get(restful.HEADER_ContentType), "multipart/form-data") {
+		err := ctx.Req().ParseMultipartForm(defaultMaxMemory)
+		if err != nil {
+			return []string{}, err
+		}
+	} else {
+		err := ctx.Req().ParseForm()
 		if err != nil {
 			return []string{}, err
 		}
