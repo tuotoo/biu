@@ -1,16 +1,21 @@
 package opt
 
 import (
-	"bytes"
 	"fmt"
+	"log"
 	"net/http"
 	"reflect"
 	"time"
 	"unicode"
+	_ "unsafe"
 
+	_ "github.com/mailru/easyjson/gen"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/param"
 )
+
+//go:linkname camelToSnake github.com/mailru/easyjson/gen.camelToSnake
+func camelToSnake(name string) string
 
 // RouteFunc is the type of route options functions.
 type RouteFunc func(*Route)
@@ -51,16 +56,16 @@ func RouteTo(f func(ctx box.Ctx)) RouteFunc {
 func RouteParam(f interface{}) RouteFunc {
 	vf := reflect.ValueOf(f)
 	if vf.Kind() != reflect.Func {
-		panic("route argument must be a function")
+		log.Fatal("route argument must be a function")
 	}
 
 	t := reflect.TypeOf(f)
 	if t.NumIn() <= 0 {
-		panic("route function must at least has a box.Ctx argument")
+		log.Fatal("route function must at least has a box.Ctx argument")
 	}
 	first := t.In(0)
 	if fmt.Sprintf("%s.%s", first.PkgPath(), first.Name()) != box.CtxSignature {
-		panic("first argument of route function must be box.Ctx")
+		log.Fatal("first argument of route function must be box.Ctx")
 	}
 
 	if t.NumIn() < 2 {
@@ -78,6 +83,9 @@ func RouteParam(f interface{}) RouteFunc {
 	for i := 0; i < second.NumField(); i++ {
 		typ, format, multi := getBaseType(second.Field(i).Type)
 		name := camelToSnake(second.Field(i).Name)
+		if unicode.IsLower([]rune(second.Field(i).Name)[0]) {
+			continue
+		}
 		if tagName, ok := second.Field(i).Tag.Lookup("name"); ok {
 			name = tagName
 		}
@@ -249,56 +257,10 @@ func getBaseType(t reflect.Type) (typ, format string, multi bool) {
 		case box.FileSignature:
 			return "file", "", false
 		default:
-			panic(fmt.Errorf("type %s currently not support", t.String()))
+			log.Fatal(fmt.Errorf("type %s currently not support", t.String()))
 		}
 	default:
-		panic(fmt.Errorf("type %s currently not support", t.String()))
+		log.Fatal(fmt.Errorf("type %s currently not support", t.String()))
 	}
 	return typ, format, false
-}
-
-// camelToSnake from https://github.com/mailru/easyjson
-func camelToSnake(name string) string {
-	var ret bytes.Buffer
-
-	multipleUpper := false
-	var lastUpper rune
-	var beforeUpper rune
-
-	for _, c := range name {
-		// Non-lowercase character after uppercase is considered to be uppercase too.
-		isUpper := unicode.IsUpper(c) || (lastUpper != 0 && !unicode.IsLower(c))
-
-		if lastUpper != 0 {
-			// Output a delimiter if last character was either the first uppercase character
-			// in a row, or the last one in a row (e.g. 'S' in "HTTPServer").
-			// Do not output a delimiter at the beginning of the name.
-
-			firstInRow := !multipleUpper
-			lastInRow := !isUpper
-
-			if ret.Len() > 0 && (firstInRow || lastInRow) && beforeUpper != '_' {
-				ret.WriteByte('_')
-			}
-			ret.WriteRune(unicode.ToLower(lastUpper))
-		}
-
-		// Buffer uppercase char, do not output it yet as a delimiter may be required if the
-		// next character is lowercase.
-		if isUpper {
-			multipleUpper = lastUpper != 0
-			lastUpper = c
-			continue
-		}
-
-		ret.WriteRune(c)
-		lastUpper = 0
-		beforeUpper = c
-		multipleUpper = false
-	}
-
-	if lastUpper != 0 {
-		ret.WriteRune(unicode.ToLower(lastUpper))
-	}
-	return string(ret.Bytes())
 }

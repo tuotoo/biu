@@ -77,6 +77,9 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	mapKey := path + " " + method
 
 	for _, v := range cfg.Params {
+		if v.Name == "" {
+			continue
+		}
 		var param *restful.Parameter
 		switch method {
 		case http.MethodGet, http.MethodDelete:
