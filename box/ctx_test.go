@@ -1,15 +1,14 @@
 package box_test
 
 import (
+	"errors"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/emicklei/go-restful"
 	"github.com/gavv/httpexpect"
-	"github.com/pkg/errors"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
-	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
@@ -46,7 +45,6 @@ func TestCtx_Must(t *testing.T) {
 	c.Add(ws.WebService)
 	s := httptest.NewServer(c)
 	defer s.Close()
-	log.UseConsoleLogger()
 	httpexpect.New(t, s.URL).GET("/must/1").Expect().JSON().Object().
 		ValueEqual("code", 1).ValueEqual("message", "normal err")
 	httpexpect.New(t, s.URL).GET("/must/2").Expect().JSON().Object().

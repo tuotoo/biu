@@ -64,7 +64,7 @@ func RouteParam(f interface{}) RouteFunc {
 		log.Fatal("route function must at least has a box.Ctx argument")
 	}
 	first := t.In(0)
-	if fmt.Sprintf("%s.%s", first.PkgPath(), first.Name()) != box.CtxSignature {
+	if typeSignature(first) != box.CtxSignature {
 		log.Fatal("first argument of route function must be box.Ctx")
 	}
 
@@ -126,7 +126,7 @@ func RouteParam(f interface{}) RouteFunc {
 			case reflect.Float32, reflect.Float64:
 				field.SetFloat(p.Float64Default(0))
 			case reflect.Struct:
-				switch fmt.Sprintf("%s.%s", field.Type().PkgPath(), field.Type().Name()) {
+				switch typeSignature(field.Type()) {
 				case "time.Time":
 					field.Set(reflect.ValueOf(p.TimeDefault(time.RFC3339, time.Time{})))
 				case box.FileSignature:
@@ -171,7 +171,7 @@ func RouteParam(f interface{}) RouteFunc {
 				case reflect.Float64:
 					rst, _ = p.Float64Array()
 				case reflect.Struct:
-					switch fmt.Sprintf("%s.%s", elem.PkgPath(), elem.Name()) {
+					switch typeSignature(elem) {
 					case "time.Time":
 						rst, _ = p.TimeArray(time.RFC3339)
 					default:
@@ -251,7 +251,7 @@ func getBaseType(t reflect.Type) (typ, format string, multi bool) {
 		}
 		return "string", "byte", true
 	case reflect.Struct:
-		switch fmt.Sprintf("%s.%s", t.PkgPath(), t.Name()) {
+		switch typeSignature(t) {
 		case "time.Time":
 			return "string", "date-time", false
 		case box.FileSignature:
@@ -263,4 +263,8 @@ func getBaseType(t reflect.Type) (typ, format string, multi bool) {
 		log.Fatal(fmt.Errorf("type %s currently not support", t.String()))
 	}
 	return typ, format, false
+}
+
+func typeSignature(t reflect.Type) string {
+	return fmt.Sprintf("%s.%s", t.PkgPath(), t.Name())
 }
