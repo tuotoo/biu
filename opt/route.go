@@ -3,7 +3,6 @@ package opt
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"reflect"
 	"time"
 	"unicode"
@@ -20,12 +19,45 @@ func camelToSnake(name string) string
 // RouteFunc is the type of route options functions.
 type RouteFunc func(*Route)
 
-type Param struct {
-	Name    string
-	Type    string
-	Format  string
-	Desc    string
-	IsMulti bool
+type FieldType int8
+
+const (
+	FieldUnknown FieldType = iota
+	FieldHeader
+	FieldPath
+	FieldQuery
+	FieldForm
+	FieldBody
+	FieldReturn
+)
+
+func (f FieldType) String() string {
+	switch f {
+	case FieldHeader:
+		return "Header"
+	case FieldPath:
+		return "Path"
+	case FieldQuery:
+		return "Query"
+	case FieldForm:
+		return "Form"
+	case FieldBody:
+		return "Body"
+	default:
+		return "Unknown"
+	}
+}
+
+type ParamOpt struct {
+	Name      string
+	Type      string
+	Format    string
+	Desc      string
+	IsMulti   bool
+	FieldType FieldType
+	FieldName string
+	Body      interface{}
+	Return    interface{}
 }
 
 // Route is the options of route.
@@ -36,7 +68,7 @@ type Route struct {
 	Errors            map[int]string
 	EnableAutoPathDoc bool
 	ExtraPathDocs     []string
-	Params            []Param
+	Params            []ParamOpt
 }
 
 // RouteID sets the ID of a route.
@@ -53,7 +85,7 @@ func RouteTo(f func(ctx box.Ctx)) RouteFunc {
 	}
 }
 
-func RouteParam(f interface{}) RouteFunc {
+func RouteAPI(f interface{}) RouteFunc {
 	vf := reflect.ValueOf(f)
 	if vf.Kind() != reflect.Func {
 		log.Fatal("route argument must be a function")
@@ -67,7 +99,6 @@ func RouteParam(f interface{}) RouteFunc {
 	if typeSignature(first) != box.CtxSignature {
 		log.Fatal("first argument of route function must be box.Ctx")
 	}
-
 	if t.NumIn() < 2 {
 		return func(route *Route) {
 			route.To = func(ctx box.Ctx) {
@@ -79,119 +110,158 @@ func RouteParam(f interface{}) RouteFunc {
 	}
 
 	second := t.In(1)
-	params := make([]Param, second.NumField())
-	for i := 0; i < second.NumField(); i++ {
-		typ, format, multi := getBaseType(second.Field(i).Type)
-		name := camelToSnake(second.Field(i).Name)
-		if unicode.IsLower([]rune(second.Field(i).Name)[0]) {
-			continue
+	var params []ParamOpt
+	if header, ok := second.FieldByName(FieldHeader.String()); ok {
+		params = appendParam(header.Type, FieldHeader, params)
+	}
+	if path, ok := second.FieldByName(FieldPath.String()); ok {
+		params = appendParam(path.Type, FieldPath, params)
+	}
+	if query, ok := second.FieldByName(FieldQuery.String()); ok {
+		params = appendParam(query.Type, FieldQuery, params)
+	}
+	if form, ok := second.FieldByName(FieldForm.String()); ok {
+		params = appendParam(form.Type, FieldForm, params)
+	}
+	if body, ok := second.FieldByName(FieldBody.String()); ok {
+		bodyType := body.Type
+		if body.Type.Kind() == reflect.Ptr {
+			bodyType = bodyType.Elem()
 		}
-		if tagName, ok := second.Field(i).Tag.Lookup("name"); ok {
-			name = tagName
-		}
-		params[i] = Param{
-			Name:    name,
-			Type:    typ,
-			Format:  format,
-			IsMulti: multi,
-			Desc:    second.Field(i).Tag.Get("desc"),
-		}
+		params = append(params, ParamOpt{
+			FieldType: FieldBody,
+			Body:      reflect.New(bodyType).Elem().Interface(),
+			Desc:      body.Tag.Get("desc"),
+		})
 	}
 
 	to := func(ctx box.Ctx) {
 		sv := reflect.New(second).Elem()
-		for i := 0; i < second.NumField(); i++ {
-			var p param.Parameter
-			switch ctx.Req().Method {
-			case http.MethodGet, http.MethodDelete:
-				p = ctx.Query(params[i].Name)
-			case http.MethodPost, http.MethodPut, http.MethodPatch:
-				p = ctx.Form(params[i].Name)
+		for _, v := range params {
+			switch v.FieldType {
+			case FieldBody:
+				body := reflect.New(sv.FieldByName(FieldBody.String()).Type()).Interface()
+				_ = ctx.Bind(body)
+				sv.FieldByName(FieldBody.String()).Set(reflect.ValueOf(body).Elem())
 			default:
-				continue
-			}
-			field := sv.Field(i)
-			if !field.CanSet() {
-				continue
-			}
-			switch field.Type().Kind() {
-			case reflect.String:
-				field.SetString(p.StringDefault(""))
-			case reflect.Bool:
-				field.SetBool(p.BoolDefault(false))
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				field.SetInt(p.Int64Default(0))
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				field.SetUint(p.Uint64Default(0))
-			case reflect.Float32, reflect.Float64:
-				field.SetFloat(p.Float64Default(0))
-			case reflect.Struct:
-				switch typeSignature(field.Type()) {
-				case "time.Time":
-					field.Set(reflect.ValueOf(p.TimeDefault(time.RFC3339, time.Time{})))
-				case box.FileSignature:
-					f, fh, _ := ctx.Req().FormFile(params[i].Name)
-					field.Set(reflect.ValueOf(box.File{
-						Header: fh,
-						File:   f,
-					}))
-				default:
-					continue
-				}
-			case reflect.Array, reflect.Slice:
-				var rst interface{}
-				elem := field.Type().Elem()
-				switch elem.Kind() {
-				case reflect.String:
-					rst, _ = p.StringArray()
-				case reflect.Bool:
-					rst, _ = p.BoolArray()
-				case reflect.Int:
-					rst, _ = p.IntArray()
-				case reflect.Int8:
-					rst, _ = p.Int8Array()
-				case reflect.Int16:
-					rst, _ = p.Int16Array()
-				case reflect.Int32:
-					rst, _ = p.Int32Array()
-				case reflect.Int64:
-					rst, _ = p.Int64Array()
-				case reflect.Uint:
-					rst, _ = p.UintArray()
-				case reflect.Uint8:
-					rst, _ = p.Uint8Array()
-				case reflect.Uint16:
-					rst, _ = p.Uint16Array()
-				case reflect.Uint32:
-					rst, _ = p.Uint32Array()
-				case reflect.Uint64:
-					rst, _ = p.Uint64Array()
-				case reflect.Float32:
-					rst, _ = p.Float32Array()
-				case reflect.Float64:
-					rst, _ = p.Float64Array()
-				case reflect.Struct:
-					switch typeSignature(elem) {
-					case "time.Time":
-						rst, _ = p.TimeArray(time.RFC3339)
-					default:
-						continue
-					}
-				}
-				field.Set(reflect.ValueOf(rst))
-			default:
-				continue
+				setField(sv, ctx, v)
 			}
 		}
-		vf.Call([]reflect.Value{
-			reflect.ValueOf(ctx),
-			sv,
-		})
+		vf.Call([]reflect.Value{reflect.ValueOf(ctx), sv})
 	}
 	return func(route *Route) {
 		route.To = to
 		route.Params = params
 	}
+}
+
+func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
+	field := sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+	var p param.Parameter
+	switch opt.FieldType {
+	case FieldQuery:
+		p = ctx.Query(opt.Name)
+	case FieldPath:
+		p = ctx.Path(opt.Name)
+	case FieldForm:
+		p = ctx.Form(opt.Name)
+	case FieldHeader:
+		p = ctx.Header(opt.Name)
+	default:
+		return
+	}
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(p.StringDefault(""))
+	case reflect.Bool:
+		field.SetBool(p.BoolDefault(false))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		field.SetInt(p.Int64Default(0))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		field.SetUint(p.Uint64Default(0))
+	case reflect.Float32, reflect.Float64:
+		field.SetFloat(p.Float64Default(0))
+	case reflect.Struct:
+		switch typeSignature(field.Type()) {
+		case "time.Time":
+			field.Set(reflect.ValueOf(p.TimeDefault(time.RFC3339, time.Time{})))
+		case box.FileSignature:
+			f, fh, _ := ctx.Req().FormFile(opt.Name)
+			field.Set(reflect.ValueOf(box.File{
+				Header: fh,
+				File:   f,
+			}))
+		default:
+			return
+		}
+	case reflect.Array, reflect.Slice:
+		var rst interface{}
+		elem := field.Type().Elem()
+		switch elem.Kind() {
+		case reflect.String:
+			rst, _ = p.StringArray()
+		case reflect.Bool:
+			rst, _ = p.BoolArray()
+		case reflect.Int:
+			rst, _ = p.IntArray()
+		case reflect.Int8:
+			rst, _ = p.Int8Array()
+		case reflect.Int16:
+			rst, _ = p.Int16Array()
+		case reflect.Int32:
+			rst, _ = p.Int32Array()
+		case reflect.Int64:
+			rst, _ = p.Int64Array()
+		case reflect.Uint:
+			rst, _ = p.UintArray()
+		case reflect.Uint8:
+			rst, _ = p.Uint8Array()
+		case reflect.Uint16:
+			rst, _ = p.Uint16Array()
+		case reflect.Uint32:
+			rst, _ = p.Uint32Array()
+		case reflect.Uint64:
+			rst, _ = p.Uint64Array()
+		case reflect.Float32:
+			rst, _ = p.Float32Array()
+		case reflect.Float64:
+			rst, _ = p.Float64Array()
+		case reflect.Struct:
+			switch typeSignature(elem) {
+			case "time.Time":
+				rst, _ = p.TimeArray(time.RFC3339)
+			default:
+				return
+			}
+		}
+		field.Set(reflect.ValueOf(rst))
+	default:
+		return
+	}
+}
+
+func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt {
+	for i := 0; i < t.NumField(); i++ {
+		typ, format, multi := getBaseType(t.Field(i).Type)
+		fieldName := t.Field(i).Name
+		name := camelToSnake(fieldName)
+		if unicode.IsLower([]rune(fieldName)[0]) {
+			continue
+		}
+		if tagName, ok := t.Field(i).Tag.Lookup("name"); ok {
+			name = tagName
+		}
+		params = append(params, ParamOpt{
+			FieldType: field,
+			Name:      name,
+			Type:      typ,
+			Format:    format,
+			IsMulti:   multi,
+			FieldName: fieldName,
+			Desc:      t.Field(i).Tag.Get("desc"),
+		})
+	}
+	return params
 }
 
 // EnableAuth enables JWT auth for a route.

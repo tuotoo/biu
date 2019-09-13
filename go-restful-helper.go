@@ -77,26 +77,54 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	mapKey := path + " " + method
 
 	for _, v := range cfg.Params {
-		if v.Name == "" {
-			continue
-		}
-		var param *restful.Parameter
-		switch method {
-		case http.MethodGet, http.MethodDelete:
-			param = ws.QueryParameter(v.Name, v.Desc)
-		case http.MethodPost, http.MethodPut, http.MethodPatch:
-			param = ws.FormParameter(v.Name, v.Desc)
+		switch v.FieldType {
+		case opt.FieldQuery:
+			param := ws.QueryParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
+		case opt.FieldForm:
+			param := ws.FormParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
 			if v.Type == "file" {
 				builder = builder.Consumes(MIME_FILE_FORM)
 			}
-		default:
-			continue
+		case opt.FieldBody:
+			builder = builder.Reads(v.Body, v.Desc)
+		case opt.FieldPath:
+			param := ws.PathParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			builder = builder.Param(param)
+		case opt.FieldHeader:
+			param := ws.HeaderParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
+		case opt.FieldReturn:
+			builder = builder.DefaultReturns(v.Desc, v.Body)
+		case opt.FieldUnknown:
+			var param *restful.Parameter
+			switch method {
+			case http.MethodGet, http.MethodDelete:
+				param = ws.QueryParameter(v.Name, v.Desc)
+			case http.MethodPost, http.MethodPut, http.MethodPatch:
+				param = ws.FormParameter(v.Name, v.Desc)
+				if v.Type == "file" {
+					builder = builder.Consumes(MIME_FILE_FORM)
+				}
+			default:
+				continue
+			}
+			param = param.DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
 		}
-		param = param.DataType(v.Type).DataFormat(v.Format)
-		if v.IsMulti {
-			param = param.AllowMultiple(true).CollectionFormat("multi")
-		}
-		builder = builder.Param(param)
 	}
 
 	if AutoGenPathDoc && cfg.EnableAutoPathDoc {

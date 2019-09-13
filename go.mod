@@ -1,5 +1,7 @@
 module github.com/tuotoo/biu
 
+go 1.13
+
 require (
 	github.com/PuerkitoBio/purell v1.1.0 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
