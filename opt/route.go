@@ -44,6 +44,8 @@ func (f FieldType) String() string {
 		return "Form"
 	case FieldBody:
 		return "Body"
+	case FieldReturn:
+		return "Return"
 	default:
 		return "Unknown"
 	}
@@ -143,6 +145,19 @@ func RouteAPI(f interface{}) RouteFunc {
 			Desc:      body.Tag.Get("desc"),
 		})
 	}
+	if ret, ok := second.FieldByName(FieldReturn.String()); ok {
+		if ret.Type.Kind() != reflect.Func {
+			log.Fatal("return must be a function")
+		}
+		if ret.Type.NumIn() < 1 {
+			log.Fatal("return must at least has an argument")
+		}
+		params = append(params, ParamOpt{
+			FieldType: FieldReturn,
+			Return:    reflect.New(ret.Type.In(0)).Interface(),
+			Desc:      ret.Tag.Get("desc"),
+		})
+	}
 
 	to := func(ctx box.Ctx) {
 		sv := reflect.New(second).Elem()
@@ -162,6 +177,15 @@ func RouteAPI(f interface{}) RouteFunc {
 				body := reflect.New(bodyType).Interface()
 				_ = ctx.Bind(body)
 				sv.FieldByName(FieldBody.String()).Set(reflect.ValueOf(body).Elem())
+			case FieldReturn:
+				sv.FieldByName(FieldReturn.String()).Set(reflect.MakeFunc(sv.FieldByName(FieldReturn.String()).Type(),
+					func(args []reflect.Value) (results []reflect.Value) {
+						if len(args) < 1 {
+							return nil
+						}
+						ctx.ResponseJSON(args[0].Interface())
+						return nil
+					}))
 			default:
 				setField(sv, ctx, v)
 			}

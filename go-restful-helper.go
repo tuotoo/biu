@@ -105,7 +105,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 			}
 			builder = builder.Param(param)
 		case opt.FieldReturn:
-			builder = builder.DefaultReturns(v.Desc, v.Body)
+			builder = builder.Returns(200, v.Desc, v.Return)
 		case opt.FieldUnknown:
 			var param *restful.Parameter
 			switch method {
