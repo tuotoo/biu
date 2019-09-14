@@ -2,6 +2,7 @@ package opt
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"reflect"
 	"time"
@@ -128,9 +129,17 @@ func RouteAPI(f interface{}) RouteFunc {
 		if body.Type.Kind() == reflect.Ptr {
 			bodyType = bodyType.Elem()
 		}
+		var bodyExampleValue interface{}
+		sig := typeSignature(bodyType)
+		switch sig {
+		case "io.ReadCloser", "io.Reader":
+			bodyExampleValue = ""
+		default:
+			bodyExampleValue = reflect.New(bodyType).Elem().Interface()
+		}
 		params = append(params, ParamOpt{
 			FieldType: FieldBody,
-			Body:      reflect.New(bodyType).Elem().Interface(),
+			Body:      bodyExampleValue,
 			Desc:      body.Tag.Get("desc"),
 		})
 	}
@@ -140,7 +149,17 @@ func RouteAPI(f interface{}) RouteFunc {
 		for _, v := range params {
 			switch v.FieldType {
 			case FieldBody:
-				body := reflect.New(sv.FieldByName(FieldBody.String()).Type()).Interface()
+				bodyType := sv.FieldByName(FieldBody.String()).Type()
+				switch typeSignature(bodyType) {
+				case "io.ReadCloser", "io.Reader":
+					sv.FieldByName(FieldBody.String()).Set(reflect.ValueOf(ctx.Req().Body))
+					continue
+				}
+				if bodyType.Kind() != reflect.Struct && !(bodyType.Kind() == reflect.Ptr && bodyType.Elem().Kind() == reflect.Struct) {
+					setField(sv, ctx, v)
+					continue
+				}
+				body := reflect.New(bodyType).Interface()
 				_ = ctx.Bind(body)
 				sv.FieldByName(FieldBody.String()).Set(reflect.ValueOf(body).Elem())
 			default:
@@ -156,17 +175,25 @@ func RouteAPI(f interface{}) RouteFunc {
 }
 
 func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
-	field := sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+	var field reflect.Value
 	var p param.Parameter
 	switch opt.FieldType {
 	case FieldQuery:
 		p = ctx.Query(opt.Name)
+		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
 	case FieldPath:
 		p = ctx.Path(opt.Name)
+		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
 	case FieldForm:
 		p = ctx.Form(opt.Name)
+		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
 	case FieldHeader:
 		p = ctx.Header(opt.Name)
+		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+	case FieldBody:
+		bodyBs, _ := ioutil.ReadAll(ctx.Req().Body)
+		p = param.NewParameter([]string{string(bodyBs)}, nil)
+		field = sv.FieldByName(opt.FieldType.String())
 	default:
 		return
 	}
