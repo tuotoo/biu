@@ -24,7 +24,7 @@ const (
 	BiuAttrErrArgs    = "__BIU_ERROR_ARGS__"
 	BiuAttrRouteID    = "__BIU_ROUTE_ID__"
 	BiuAttrAuthUserID = "__BIU_AUTH_USER_ID__"
-	BiuAttrEntity     = "__BIU_ENTITY__"
+	BiuAttrEntities   = "__BIU_ENTITIES__"
 )
 
 const CtxSignature = "github.com/tuotoo/biu/box.Ctx"
@@ -50,12 +50,14 @@ func (ctx Ctx) Resp() http.ResponseWriter {
 
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
-func (ctx *Ctx) ResponseJSON(v interface{}) {
-	ctx.SetAttribute(BiuAttrEntity, v)
+func (ctx *Ctx) ResponseJSON(v ...interface{}) {
+	ctx.SetAttribute(BiuAttrEntities, v)
 }
 
-func (ctx *Ctx) Transform(f func(interface{}) interface{}) {
-	ctx.SetAttribute(BiuAttrEntity, f(ctx.Attribute(BiuAttrEntity)))
+func (ctx *Ctx) Transform(f func(...interface{}) []interface{}) {
+	if entities, ok := ctx.Attribute(BiuAttrEntities).([]interface{}); ok {
+		ctx.SetAttribute(BiuAttrEntities, f(entities...))
+	}
 }
 
 // ResponseError is a convenience method to response an error code and message.

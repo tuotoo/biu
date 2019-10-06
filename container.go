@@ -49,15 +49,23 @@ func New(container ...*restful.Container) *Container {
 			return
 		}
 
+		entities, ok := ctx.Attribute(box.BiuAttrEntities).([]interface{})
+		if !ok {
+			return
+		}
+		if len(entities) < 1 {
+			return
+		}
+
 		err := ctx.WriteAsJson(box.CommonResp{
-			Data:    ctx.Attribute(box.BiuAttrEntity),
+			Data:    entities[0],
 			RouteID: ctx.RouteID(),
 		})
 		if err != nil {
 			ctx.Logger.Info(log.BiuInternalInfo{
 				Err: err,
 				Extras: map[string]interface{}{
-					"Data":    ctx.Attribute(box.BiuAttrEntity),
+					"Data":    entities[0],
 					"RouteID": ctx.RouteID(),
 				},
 			})
