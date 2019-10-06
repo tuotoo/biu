@@ -42,6 +42,28 @@ func New(container ...*restful.Container) *Container {
 		logger:      log.DefaultLogger{},
 	}
 	c.Filter(c.FilterFunc(func(ctx box.Ctx) {
+		ctx.Next()
+
+		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
+		if ok && code != 0 {
+			return
+		}
+
+		err := ctx.WriteAsJson(box.CommonResp{
+			Data:    ctx.Attribute(box.BiuAttrEntity),
+			RouteID: ctx.RouteID(),
+		})
+		if err != nil {
+			ctx.Logger.Info(log.BiuInternalInfo{
+				Err: err,
+				Extras: map[string]interface{}{
+					"Data":    ctx.Attribute(box.BiuAttrEntity),
+					"RouteID": ctx.RouteID(),
+				},
+			})
+		}
+	}))
+	c.Filter(c.FilterFunc(func(ctx box.Ctx) {
 		routeID := routeMap[ctx.RouteSignature()]
 		ctx.SetAttribute(box.BiuAttrRouteID, routeID)
 		ctx.Next()

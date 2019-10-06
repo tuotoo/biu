@@ -15,7 +15,12 @@ import (
 type test struct{}
 
 func (ctl test) WebService(ws biu.WS) {
-	ws.Route(ws.GET("/{id}"),
+	ws.Route(ws.GET("/{id}").Filter(biu.Filter(func(ctx box.Ctx) {
+		ctx.Next()
+		ctx.Transform(func(i interface{}) interface{} {
+			return "AFTER TRANSFORM"
+		})
+	})),
 		opt.RouteID("test.addService"),
 		opt.RouteTo(ctl.get),
 		opt.RouteErrors(map[int]string{
@@ -32,6 +37,7 @@ func (ctl test) get(ctx box.Ctx) {
 	case 2:
 		ctx.Must(errors.New("2"), 2)
 	}
+	ctx.ResponseJSON("COOL")
 }
 
 func TestContainer_AddServices(t *testing.T) {
@@ -57,4 +63,6 @@ func TestContainer_AddServices(t *testing.T) {
 		ValueEqual("code", 1).ValueEqual("message", "err msg in route")
 	httpexpect.New(t, s.URL).GET("/add-service/2").Expect().JSON().Object().
 		ValueEqual("code", 2).ValueEqual("message", "err msg global")
+	httpexpect.New(t, s.URL).GET("/add-service/3").Expect().JSON().Object().
+		ValueEqual("code", 0).ValueEqual("data", "AFTER TRANSFORM")
 }
