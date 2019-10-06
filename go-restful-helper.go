@@ -17,7 +17,7 @@ import (
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"

@@ -1,7 +1,6 @@
 package biu_test
 
 import (
-	"github.com/emicklei/go-restful"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/opt"
@@ -18,6 +17,15 @@ func (ctl Foo) WebService(ws biu.WS) {
 		DefaultReturns("Bar", Bar{}),
 		opt.RouteID("example.foo"),
 		opt.RouteTo(ctl.getBar),
+		opt.RouteErrors(map[int]string{
+			100: "num not Number",
+		}),
+	)
+
+	ws.Route(ws.POST("/").
+		Doc("Post Req"),
+		opt.RouteID("example.post"),
+		opt.RouteAPI(ctl.post),
 		opt.RouteErrors(map[int]string{
 			100: "num not Number",
 		}),
@@ -41,9 +49,16 @@ func (ctl Foo) getBar(ctx box.Ctx) {
 	ctx.ResponseJSON(Bar{Msg: "bar", Num: num})
 }
 
+func (ctl Foo) post(ctx box.Ctx, api struct {
+	Form struct{ Num int }
+}) {
+	ctx.ResponseJSON(Bar{Msg: "POST", Num: api.Form.Num})
+}
+
 func Example() {
-	restful.Filter(biu.LogFilter())
-	biu.AddServices("/v1", nil,
+	c := biu.New()
+	c.Filter(biu.LogFilter())
+	c.AddServices("/v1", nil,
 		biu.NS{
 			NameSpace:  "foo",
 			Controller: Foo{},
@@ -52,15 +67,15 @@ func Example() {
 	)
 	// Note: you should add swagger service after adding services.
 	// swagger document will be available at http://localhost:8080/v1/swagger
-	swaggerService := biu.NewSwaggerService(biu.SwaggerInfo{
+	swaggerService := c.NewSwaggerService(biu.SwaggerInfo{
 		Title:        "Foo Bar",
 		Description:  "Foo Bar Service",
-		ContactName:  "Tuotoo",
+		ContactName:  "TuoToo",
 		ContactEmail: "jqs7@tuotoo.com",
 		ContactURL:   "https://tuotoo.com",
 		Version:      "1.0.0",
 		RoutePrefix:  "/v1",
 	})
-	restful.Add(swaggerService)
-	biu.Run(":8080", nil)
+	c.Add(swaggerService)
+	c.Run(":8080", nil)
 }

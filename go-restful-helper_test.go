@@ -6,10 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
-	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
@@ -36,7 +35,6 @@ func (ctl test) get(ctx box.Ctx) {
 }
 
 func TestContainer_AddServices(t *testing.T) {
-	log.UseConsoleLogger()
 	biu.AutoGenPathDoc = true
 	c := biu.New()
 	for _, v := range c.RegisteredWebServices() {
