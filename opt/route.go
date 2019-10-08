@@ -7,15 +7,11 @@ import (
 	"reflect"
 	"time"
 	"unicode"
-	_ "unsafe"
 
-	_ "github.com/mailru/easyjson/gen"
 	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/internal"
 	"github.com/tuotoo/biu/param"
 )
-
-//go:linkname camelToSnake github.com/mailru/easyjson/gen.camelToSnake
-func camelToSnake(name string) string
 
 // RouteFunc is the type of route options functions.
 type RouteFunc func(*Route)
@@ -295,7 +291,7 @@ func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt 
 	for i := 0; i < t.NumField(); i++ {
 		typ, format, multi := getBaseType(t.Field(i).Type)
 		fieldName := t.Field(i).Name
-		name := camelToSnake(fieldName)
+		name := internal.CamelToSnake(fieldName)
 		if unicode.IsLower([]rune(fieldName)[0]) {
 			continue
 		}

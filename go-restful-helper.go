@@ -8,18 +8,17 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"regexp"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
-	_ "unsafe"
 
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful-openapi"
 	"github.com/gavv/httpexpect/v2"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/internal"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 	"golang.org/x/xerrors"
@@ -33,21 +32,6 @@ const (
 )
 
 var AutoGenPathDoc = false
-
-type pathExpression struct {
-	LiteralCount int      // the number of literal characters (means those not resulting from template variable substitution)
-	VarNames     []string // the names of parameters (enclosed by {}) in the path
-	VarCount     int      // the number of named parameters (enclosed by {}) in the path
-	Matcher      *regexp.Regexp
-	Source       string // Path as defined by the RouteBuilder
-	tokens       []string
-}
-
-//go:linkname newPathExpression github.com/emicklei/go-restful.newPathExpression
-func newPathExpression(path string) (*pathExpression, error)
-
-//go:linkname nameOfFunction github.com/emicklei/go-restful.nameOfFunction
-func nameOfFunction(f interface{}) string
 
 // Route creates a new Route using the RouteBuilder
 // and add to the ordered list of Routes.
@@ -65,7 +49,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	if cfg.ID != "" {
 		builder = builder.Operation(cfg.ID)
 	} else {
-		builder = builder.Operation(nameOfFunction(cfg.To))
+		builder = builder.Operation(internal.NameOfFunction(cfg.To))
 	}
 
 	elm := reflect.ValueOf(builder).Elem()
@@ -128,7 +112,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	}
 
 	if AutoGenPathDoc && cfg.EnableAutoPathDoc {
-		exp, err := newPathExpression(p2)
+		exp, err := internal.NewPathExpression(p2)
 		if err != nil {
 			ws.Container.logger.Fatal(log.BiuInternalInfo{
 				Err:    xerrors.Errorf("invalid path: %s", err),
