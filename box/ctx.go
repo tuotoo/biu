@@ -1,7 +1,6 @@
 package box
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -10,27 +9,25 @@ import (
 	"github.com/dgrijalva/jwt-go/request"
 	"github.com/emicklei/go-restful"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/json-iterator/go"
 	"github.com/mpvl/errc"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/param"
+	"golang.org/x/xerrors"
 )
-
-var (
-	RouteIDMap   = make(map[string]string)
-	RouteErrMap  = make(map[string]map[int]string)
-	GlobalErrMap = make(map[int]string)
-)
-
-// DisableErrHandler disables error handler using errc.
-var DisableErrHandler bool
 
 const (
-	defaultMaxMemory = 32 << 20 // 32 MB
+	defaultMaxMemory  = 32 << 20 // 32 MB
+	BiuAttrErr        = "__BIU_ERROR__"
+	BiuAttrErrCode    = "__BIU_ERROR_CODE__"
+	BiuAttrErrMsg     = "__BIU_ERROR_MESSAGE__"
+	BiuAttrErrArgs    = "__BIU_ERROR_ARGS__"
+	BiuAttrRouteID    = "__BIU_ROUTE_ID__"
+	BiuAttrAuthUserID = "__BIU_AUTH_USER_ID__"
+	BiuAttrEntities   = "__BIU_ENTITIES__"
 )
+
+const CtxSignature = "github.com/tuotoo/biu/box.Ctx"
 
 // Ctx wrap *restful.Request and *restful.Response in one struct.
 type Ctx struct {
@@ -38,6 +35,7 @@ type Ctx struct {
 	*restful.Response
 	*restful.FilterChain
 	ErrCatcher errc.Catcher
+	Logger     log.ILogger
 }
 
 // Req returns http.Request of ctx.
@@ -52,40 +50,49 @@ func (ctx Ctx) Resp() http.ResponseWriter {
 
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
-// It uses jsoniter for marshalling the value.
-func (ctx *Ctx) ResponseJSON(v interface{}) {
-	CommonResponse(ctx.Response, ctx.RouteID(), 0, "", v)
+func (ctx *Ctx) ResponseJSON(v ...interface{}) {
+	ctx.SetAttribute(BiuAttrEntities, v)
+}
+
+func (ctx *Ctx) Transform(f func(...interface{}) []interface{}) {
+	if entities, ok := ctx.Attribute(BiuAttrEntities).([]interface{}); ok {
+		ctx.SetAttribute(BiuAttrEntities, f(entities...))
+	}
 }
 
 // ResponseError is a convenience method to response an error code and message.
-// It uses jsoniter for marshalling the value.
-func (ctx *Ctx) ResponseError(msg string, code int) {
-	CommonResponse(ctx.Response, ctx.RouteID(), code, msg, nil)
+func (ctx *Ctx) ResponseError(code int, msg string) {
+	err := ctx.WriteAsJson(CommonResp{
+		Code:    code,
+		Message: msg,
+		RouteID: ctx.RouteID(),
+	})
+	if err != nil {
+		ctx.Logger.Info(log.BiuInternalInfo{
+			Err: err,
+			Extras: map[string]interface{}{
+				"Code":    code,
+				"Msg":     msg,
+				"RouteID": ctx.RouteID(),
+			},
+		})
+	}
 }
 
 // RouteID returns the RouteID of current route.
 func (ctx *Ctx) RouteID() string {
-	return RouteIDMap[ctx.RouteSignature()]
+	return ctx.Attribute(BiuAttrRouteID).(string)
 }
 
 // RouteSignature returns the signature of current route.
 // Example: /v1/user/login POST
 func (ctx *Ctx) RouteSignature() string {
-	return ctx.SelectedRoutePath() + " " + ctx.Request.Request.Method
-}
-
-// ErrMsg returns the message of a error code in current route.
-func (ctx *Ctx) ErrMsg(code int) string {
-	msg, ok := RouteErrMap[ctx.RouteSignature()][code]
-	if ok {
-		return msg
-	}
-	return GlobalErrMap[code]
+	return ctx.SelectedRoutePath() + " " + ctx.Req().Method
 }
 
 // Redirect replies to the request with a redirect to url.
 func (ctx *Ctx) Redirect(url string, code int) {
-	http.Redirect(ctx.ResponseWriter, ctx.Request.Request, url, code)
+	http.Redirect(ctx.Resp(), ctx.Req(), url, code)
 }
 
 // ContainsError is a convenience method to check error is nil.
@@ -93,33 +100,11 @@ func (ctx *Ctx) Redirect(url string, code int) {
 // else it will log the error, make a CommonResp response and return true.
 // if code is 0, it will use err.Error() as CommonResp.message.
 func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
-	msg := ctx.ErrMsg(code)
-	if len(v) > 0 {
-		msg = fmt.Sprintf(msg, v...)
-	}
-	if CheckError(err, log.Info().
-		Str("routeID", ctx.RouteID()).
-		Str("routeSig", ctx.RouteSignature()).
-		Int("code", code).
-		Str("msg", msg)) {
+	if err == nil {
 		return false
 	}
-	if code == 0 {
-		msg = err.Error()
-	}
-	ResponseError(ctx.Response, ctx.RouteID(), msg, code)
+	ctx.ResponseStdErrCode(code, v...)
 	return true
-}
-
-// MustLogger, override it to customize the log output of must
-var MustLogger = func(ctx *Ctx, code int, msg string, err error) {
-	log.Info().
-		Str("routeID", ctx.RouteID()).
-		Str("routeSig", ctx.RouteSignature()).
-		Int("code", code).
-		Str("msg", msg).
-		Str(zerolog.ErrorFieldName, fmt.Sprintf("%+v\n", err)).
-		Msg("verify error")
 }
 
 type errHandler struct {
@@ -130,43 +115,33 @@ type errHandler struct {
 
 // Handle implements errc.Handle
 func (e errHandler) Handle(s errc.State, err error) error {
-	msg := e.ctx.ErrMsg(e.code)
 	vLen := len(e.v)
 	if vLen > 0 {
 		if f, ok := e.v[vLen-1].(func()); ok {
 			f()
 			e.v = e.v[:vLen-1]
 		}
-		msg = fmt.Sprintf(msg, e.v...)
 	}
-	MustLogger(e.ctx, e.code, msg, err)
-	if e.code == 0 {
-		msg = err.Error()
-	}
-	ResponseError(e.ctx.Response, e.ctx.RouteID(), msg, e.code)
+	e.ctx.ResponseStdErrCode(e.code, e.v...)
+	e.ctx.SetAttribute(BiuAttrErr, err)
 	return err
 }
 
 // Must causes a return from a function if err is not nil.
 func (ctx *Ctx) Must(err error, code int, v ...interface{}) {
-	if !DisableErrHandler {
-		ctx.ErrCatcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
-	}
+	ctx.ErrCatcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
 }
 
 // ResponseStdErrCode is a convenience method response a code
 // with msg in Code Desc.
 func (ctx *Ctx) ResponseStdErrCode(code int, v ...interface{}) {
-	msg := ctx.ErrMsg(code)
-	if len(v) > 0 {
-		msg = fmt.Sprintf(msg, v...)
-	}
-	ResponseError(ctx.Response, ctx.RouteID(), msg, code)
+	ctx.SetAttribute(BiuAttrErrCode, code)
+	ctx.SetAttribute(BiuAttrErrArgs, v)
 }
 
 // UserID returns UserID stored in attribute.
 func (ctx *Ctx) UserID() string {
-	userID, ok := ctx.Attribute("UserID").(string)
+	userID, ok := ctx.Attribute(BiuAttrAuthUserID).(string)
 	if !ok {
 		return ""
 	}
@@ -175,8 +150,7 @@ func (ctx *Ctx) UserID() string {
 
 // IP returns the IP address of request.
 func (ctx *Ctx) IP() string {
-	req := ctx.Request.Request
-	ra := req.RemoteAddr
+	ra := ctx.Req().RemoteAddr
 	if ip := ctx.HeaderParameter("X-Forwarded-For"); ip != "" {
 		ra = strings.Split(ip, ", ")[0]
 	} else if ip := ctx.HeaderParameter("X-Real-IP"); ip != "" {
@@ -189,11 +163,11 @@ func (ctx *Ctx) IP() string {
 
 // Host returns the host of request.
 func (ctx *Ctx) Host() string {
-	if ctx.Request.Request.Host != "" {
-		if hostPart, _, err := net.SplitHostPort(ctx.Request.Request.Host); err == nil {
+	if ctx.Req().Host != "" {
+		if hostPart, _, err := net.SplitHostPort(ctx.Req().Host); err == nil {
 			return hostPart
 		}
-		return ctx.Request.Request.Host
+		return ctx.Req().Host
 	}
 	return "localhost"
 }
@@ -208,17 +182,18 @@ func (ctx *Ctx) Proxy() []string {
 
 // BodyParameterValues returns the array of parameter in a POST form body.
 func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
-	err := ctx.Request.Request.ParseForm()
-	if err != nil {
-		return []string{}, err
-	}
-	if ctx.Request.Request.PostForm == nil {
-		err = ctx.Request.Request.ParseMultipartForm(defaultMaxMemory)
+	if strings.HasPrefix(ctx.Req().Header.Get(restful.HEADER_ContentType), "multipart/form-data") {
+		err := ctx.Req().ParseMultipartForm(defaultMaxMemory)
+		if err != nil {
+			return []string{}, err
+		}
+	} else {
+		err := ctx.Req().ParseForm()
 		if err != nil {
 			return []string{}, err
 		}
 	}
-	if vs := ctx.Request.Request.PostForm[name]; len(vs) > 0 {
+	if vs := ctx.Req().PostForm[name]; len(vs) > 0 {
 		return vs, nil
 	}
 	return []string{}, nil
@@ -226,10 +201,7 @@ func (ctx *Ctx) BodyParameterValues(name string) ([]string, error) {
 
 // Query reads query parameter with name.
 func (ctx *Ctx) Query(name string) param.Parameter {
-	if ctx.Req().Form == nil {
-		ctx.Req().ParseMultipartForm(defaultMaxMemory)
-	}
-	return param.NewParameter(ctx.Req().Form[name], nil)
+	return param.NewParameter(ctx.QueryParameters(name), nil)
 }
 
 // Form reads form parameter with name.
@@ -256,7 +228,7 @@ func (ctx *Ctx) Header(name string) param.Parameter {
 // It decodes the json payload into the struct specified as a pointer.
 // It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
 func (ctx *Ctx) Bind(obj interface{}) error {
-	b := binding.Default(ctx.Request.Request.Method, ctx.Request.HeaderParameter("Content-Type"))
+	b := binding.Default(ctx.Req().Method, ctx.Request.HeaderParameter("Content-Type"))
 	return ctx.BindWith(obj, b)
 }
 
@@ -268,7 +240,7 @@ func (ctx *Ctx) MustBind(obj interface{}, code int, v ...interface{}) {
 // BindWith binds the passed struct pointer using the specified binding engine.
 // See the binding package.
 func (ctx *Ctx) BindWith(obj interface{}, b binding.Binding) error {
-	return b.Bind(ctx.Request.Request, obj)
+	return b.Bind(ctx.Req(), obj)
 }
 
 // MustBindWith is a shortcur for ctx.Must(ctx.BindWith(obj, b), code, v...)
@@ -296,84 +268,19 @@ func (ctx *Ctx) MustBindQuery(obj interface{}, code int, v ...interface{}) {
 	ctx.Must(ctx.BindQuery(obj), code, v...)
 }
 
-// ResponseJSON is a convenience method
-// for writing a value wrap in CommonResp as JSON.
-// It uses jsoniter for marshalling the value.
-func ResponseJSON(w http.ResponseWriter, routeID string, v interface{}) {
-	CommonResponse(w, routeID, 0, "", v)
-}
-
-// ResponseError is a convenience method to response an error code and message.
-// It uses jsoniter for marshalling the value.
-func ResponseError(w http.ResponseWriter, routeID string, msg string, code int) {
-	CommonResponse(w, routeID, code, msg, nil)
-}
-
-// ContainsError is a convenience method to check error is nil.
-// If error is nil, it will return false,
-// else it will log the error, make a CommonResp response and return true.
-// if code is 0, it will use err.Error() as CommonResp.message.
-func ContainsError(w http.ResponseWriter, RouteSignature string, err error, code int) bool {
-	msg, ok := RouteErrMap[RouteSignature][code]
-	if !ok {
-		msg = GlobalErrMap[code]
-	}
-	if CheckError(err, log.Info().Int("code", code).Str("msg", msg)) {
-		return false
-	}
-	if code == 0 {
-		msg = err.Error()
-	}
-	ResponseError(w, RouteIDMap[RouteSignature], msg, code)
-	return true
-}
-
-// CheckError is a convenience method to check error is nil.
-// If error is nil, it will return true,
-// else it will log the error and return false
-func CheckError(err error, log *log.Wrap) bool {
-	if err == nil {
-		return true
-	}
-	if log != nil {
-		log.Str(zerolog.ErrorFieldName,
-			fmt.Sprintf("%+v", errors.WithStack(err))).
-			Msg("verify error")
-	}
-	return false
-}
-
-// CommonResponse is a response func.
-// just replace it if you'd like to custom response.
-var CommonResponse = func(w http.ResponseWriter,
-	routeID string, code int, message string, data interface{}) {
-	if err := writeJSON(w, http.StatusOK, CommonResp{
-		Code:    code,
-		Message: message,
-		Data:    data,
-		RouteID: routeID,
-	}); err != nil {
-		log.Warn().Err(err).Msg("json encode")
-	}
-}
-
-func writeJSON(resp http.ResponseWriter, status int, v interface{}) error {
-	if v == nil {
-		resp.WriteHeader(status)
-		return nil
-	}
-	resp.Header().Set(restful.HEADER_ContentType, restful.MIME_JSON)
-	resp.WriteHeader(status)
-	return jsoniter.NewEncoder(resp).Encode(v)
-}
-
 // IsLogin gets JWT token in request by OAuth2Extractor,
 // and parse it with CheckToken.
-func (ctx *Ctx) IsLogin() (userID string, err error) {
-	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Request.Request)
+func (ctx *Ctx) IsLogin(i ...*auth.Instance) (userID string, err error) {
+	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Req())
 	if err != nil {
-		log.Info().Err(err).Msg("no auth header")
-		return "", err
+		return "", xerrors.Errorf("no auth header: %w", err)
 	}
-	return auth.CheckToken(tokenString)
+	if len(i) > 0 {
+		return i[0].CheckToken(tokenString)
+	}
+	return auth.DefaultInstance.CheckToken(tokenString)
+}
+
+func (ctx *Ctx) Next() {
+	ctx.ProcessFilter(ctx.Request, ctx.Response)
 }

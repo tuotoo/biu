@@ -6,17 +6,21 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gavv/httpexpect"
+	"github.com/gavv/httpexpect/v2"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
-	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
 type test struct{}
 
 func (ctl test) WebService(ws biu.WS) {
-	ws.Route(ws.GET("/{id}"),
+	ws.Route(ws.GET("/{id}").Filter(biu.Filter(func(ctx box.Ctx) {
+		ctx.Next()
+		ctx.Transform(func(i ...interface{}) []interface{} {
+			return []interface{}{i[0].(string) + " TRANSFORM " + i[1].(string)}
+		})
+	})),
 		opt.RouteID("test.addService"),
 		opt.RouteTo(ctl.get),
 		opt.RouteErrors(map[int]string{
@@ -33,10 +37,10 @@ func (ctl test) get(ctx box.Ctx) {
 	case 2:
 		ctx.Must(errors.New("2"), 2)
 	}
+	ctx.ResponseJSON("COOL", "COMPLETED")
 }
 
 func TestContainer_AddServices(t *testing.T) {
-	log.UseConsoleLogger()
 	biu.AutoGenPathDoc = true
 	c := biu.New()
 	for _, v := range c.RegisteredWebServices() {
@@ -59,4 +63,6 @@ func TestContainer_AddServices(t *testing.T) {
 		ValueEqual("code", 1).ValueEqual("message", "err msg in route")
 	httpexpect.New(t, s.URL).GET("/add-service/2").Expect().JSON().Object().
 		ValueEqual("code", 2).ValueEqual("message", "err msg global")
+	httpexpect.New(t, s.URL).GET("/add-service/3").Expect().JSON().Object().
+		ValueEqual("code", 0).ValueEqual("data", "COOL TRANSFORM COMPLETED")
 }

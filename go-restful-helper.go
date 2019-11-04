@@ -8,20 +8,20 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"regexp"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
-	_ "unsafe"
 
-	restful "github.com/emicklei/go-restful"
-	restfulspec "github.com/emicklei/go-restful-openapi"
-	"github.com/gavv/httpexpect"
+	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful-openapi"
+	"github.com/gavv/httpexpect/v2"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/internal"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -32,51 +32,6 @@ const (
 )
 
 var AutoGenPathDoc = false
-
-type pathExpression struct {
-	LiteralCount int      // the number of literal characters (means those not resulting from template variable substitution)
-	VarNames     []string // the names of parameters (enclosed by {}) in the path
-	VarCount     int      // the number of named parameters (enclosed by {}) in the path
-	Matcher      *regexp.Regexp
-	Source       string // Path as defined by the RouteBuilder
-	tokens       []string
-}
-
-//go:linkname newPathExpression github.com/emicklei/go-restful.newPathExpression
-func newPathExpression(path string) (*pathExpression, error)
-
-//go:linkname nameOfFunction github.com/emicklei/go-restful.nameOfFunction
-func nameOfFunction(f interface{}) string
-
-var swaggerTags = make(map[*http.ServeMux][]spec.Tag)
-
-// Container of restful
-type Container struct{ *restful.Container }
-
-// New creates a new restful container.
-func New() Container {
-	return Container{Container: restful.NewContainer()}
-}
-
-// AddServices adds services with namespace for container.
-func (c *Container) AddServices(prefix string, opts opt.ServicesFuncArr, wss ...NS) {
-	addService(prefix, opts, c.Container, wss...)
-}
-
-// AddServices adds services with namespace.
-func AddServices(prefix string, opts opt.ServicesFuncArr, wss ...NS) {
-	addService(prefix, opts, restful.DefaultContainer, wss...)
-}
-
-// Run starts up a web server for container.
-func (c *Container) Run(addr string, opts ...opt.RunFunc) {
-	run(addr, c.Container, opts...)
-}
-
-// Run starts up a web server with default container.
-func Run(addr string, opts ...opt.RunFunc) {
-	run(addr, nil, opts...)
-}
 
 // Route creates a new Route using the RouteBuilder
 // and add to the ordered list of Routes.
@@ -90,11 +45,11 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 			f(cfg)
 		}
 	}
-	builder = builder.To(Handle(cfg.To))
+	builder = builder.To(ws.Container.Handle(cfg.To))
 	if cfg.ID != "" {
 		builder = builder.Operation(cfg.ID)
 	} else {
-		builder = builder.Operation(nameOfFunction(cfg.To))
+		builder = builder.Operation(internal.NameOfFunction(cfg.To))
 	}
 
 	elm := reflect.ValueOf(builder).Elem()
@@ -105,10 +60,64 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	method := elm.FieldByName("httpMethod").String()
 	mapKey := path + " " + method
 
+	for _, v := range cfg.Params {
+		switch v.FieldType {
+		case opt.FieldQuery:
+			param := ws.QueryParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
+		case opt.FieldForm:
+			param := ws.FormParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
+			if v.Type == "file" {
+				builder = builder.Consumes(MIME_FILE_FORM)
+			}
+		case opt.FieldBody:
+			builder = builder.Reads(v.Body, v.Desc)
+		case opt.FieldPath:
+			param := ws.PathParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			builder = builder.Param(param)
+		case opt.FieldHeader:
+			param := ws.HeaderParameter(v.Name, v.Desc).DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
+		case opt.FieldReturn:
+			builder = builder.Returns(200, v.Desc, v.Return)
+		case opt.FieldUnknown:
+			var param *restful.Parameter
+			switch method {
+			case http.MethodGet, http.MethodDelete:
+				param = ws.QueryParameter(v.Name, v.Desc)
+			case http.MethodPost, http.MethodPut, http.MethodPatch:
+				param = ws.FormParameter(v.Name, v.Desc)
+				if v.Type == "file" {
+					builder = builder.Consumes(MIME_FILE_FORM)
+				}
+			default:
+				continue
+			}
+			param = param.DataType(v.Type).DataFormat(v.Format)
+			if v.IsMulti {
+				param = param.AllowMultiple(true).CollectionFormat("multi")
+			}
+			builder = builder.Param(param)
+		}
+	}
+
 	if AutoGenPathDoc && cfg.EnableAutoPathDoc {
-		exp, err := newPathExpression(p2)
+		exp, err := internal.NewPathExpression(p2)
 		if err != nil {
-			log.Fatal().Err(err).Str("path", p2).Msg("invalid path")
+			ws.Container.logger.Fatal(log.BiuInternalInfo{
+				Err:    xerrors.Errorf("invalid path: %s", err),
+				Extras: map[string]interface{}{"path": p2},
+			})
 		}
 		for i, v := range exp.VarNames {
 			desc := v
@@ -120,14 +129,14 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	}
 
 	if cfg.ID != "" {
-		box.RouteIDMap[mapKey] = cfg.ID
+		ws.Container.routeID[mapKey] = cfg.ID
 	}
 
-	if _, ok := box.RouteErrMap[mapKey]; !ok {
-		box.RouteErrMap[mapKey] = make(map[int]string)
+	if _, ok := ws.errors[mapKey]; !ok {
+		ws.errors[mapKey] = make(map[int]string)
 	}
 	for k, v := range cfg.Errors {
-		box.RouteErrMap[mapKey][k] = v
+		ws.errors[mapKey][k] = v
 		builder = builder.Returns(k, v, nil)
 	}
 
@@ -135,13 +144,26 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 		builder = builder.Metadata("jwt", true)
 	}
 
+	builder.Filter(Filter(func(ctx box.Ctx) {
+		ctx.Next()
+		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
+		if !ok || code == 0 {
+			return
+		}
+		msg, ok := ws.errors[ctx.RouteSignature()][code]
+		if !ok {
+			return
+		}
+		ctx.SetAttribute(box.BiuAttrErrMsg, msg)
+	}))
+
 	ws.WebService.Route(builder)
 }
 
 func addService(
 	prefix string,
 	opts opt.ServicesFuncArr,
-	container *restful.Container,
+	container *Container,
 	wss ...NS,
 ) {
 	for _, v := range wss {
@@ -158,10 +180,14 @@ func addService(
 			ws.Filter(f)
 		}
 		for k, v := range cfg.Errors {
-			box.GlobalErrMap[k] = v
+			container.errors[k] = v
 		}
 
-		v.Controller.WebService(WS{WebService: ws})
+		v.Controller.WebService(WS{
+			WebService: ws,
+			Container:  container,
+			errors:     make(map[string]map[int]string),
+		})
 		container.Add(ws)
 
 		// add swagger tags to routes of webservice
@@ -175,14 +201,15 @@ func addService(
 				URL:         v.ExternalURL,
 			}
 		}
-		swaggerTags[container.ServeMux] = append(swaggerTags[container.ServeMux], spec.Tag{
+		container.swaggerTags[container.ServeMux] = append(container.swaggerTags[container.ServeMux], spec.Tag{
 			TagProps: tagProps,
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			log.Info().Str("path", r.Path).
-				Str("method", r.Method).
-				Msg("routers")
+			container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
+				"PATH":   r.Path,
+				"METHOD": r.Method,
+			}})
 			if routes[ri].Metadata == nil {
 				routes[ri].Metadata = make(map[string]interface{})
 			}
@@ -212,8 +239,8 @@ func (ln tcpKeepAliveListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
+	_ = tc.SetKeepAlive(true)
+	_ = tc.SetKeepAlivePeriod(3 * time.Minute)
 	return tc, nil
 }
 
@@ -239,7 +266,7 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
 }
 
-func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
+func run(addr string, c *Container, opts ...opt.RunFunc) {
 	nCtx, nCancel := context.WithCancel(context.Background())
 	cfg := &opt.Run{
 		BeforeShutDown: func() {},
@@ -255,54 +282,48 @@ func run(addr string, handler http.Handler, opts ...opt.RunFunc) {
 
 	server := &http.Server{
 		Addr:    addr,
-		Handler: handler,
+		Handler: c,
 	}
 	addrChan := make(chan string)
 
 	go func() {
-		log.Error().Err(ListenAndServe(server, addrChan)).Msg("listening")
+		c.logger.Info(log.BiuInternalInfo{
+			Err: xerrors.Errorf("listen and serve: %w", ListenAndServe(server, addrChan)),
+		})
 		if cfg.Cancel != nil {
 			cfg.Cancel()
 		}
 	}()
 	select {
 	case addr := <-addrChan:
-		log.Info().Str("addr", addr).Msg("listening")
+		c.logger.Info(log.BiuInternalInfo{
+			Extras: map[string]interface{}{
+				"Listening Addr": addr,
+			},
+		})
 	case <-time.After(time.Second):
-		log.Fatal().Msg("something went wrong when starting the server")
+		c.logger.Fatal(log.BiuInternalInfo{
+			Err: xerrors.New("start server timeout"),
+		})
 	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	log.Info().Interface("ch", <-ch).Msg("signal receive")
+	c.logger.Info(log.BiuInternalInfo{
+		Extras: map[string]interface{}{
+			"Received Signal": <-ch,
+		},
+	})
 
 	cfg.BeforeShutDown()
-	log.Info().Err(server.Shutdown(cfg.Ctx)).Msg("shutting down")
-	select {
-	case <-cfg.Ctx.Done():
-		log.Info().Msg("biu~biu~biu~")
-	}
+	c.logger.Info(server.Shutdown(cfg.Ctx))
+	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
-	log.Info().Msg("server shuts down gracefully")
 }
 
 // TestServer wraps a httptest.Server
 type TestServer struct {
 	*httptest.Server
-}
-
-// NewTestServer returns a Test Server.
-func (c *Container) NewTestServer() *TestServer {
-	return &TestServer{
-		Server: httptest.NewServer(c),
-	}
-}
-
-// NewTestServer returns a Test Server.
-func NewTestServer() *TestServer {
-	return &TestServer{
-		Server: httptest.NewServer(restful.DefaultContainer),
-	}
 }
 
 // WithT accept testing.T and returns httpexpect.Expect
@@ -311,30 +332,29 @@ func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
 }
 
 // LogFilter logs
-//	{
-//		remote_addr,
-//		method,
+// 	{
+// 		remote_addr,
+// 		method,
 // 		uri,
-//		proto,
-//		status_code,
-//		content_length,
-//	}
+// 		proto,
+// 		status_code,
+// 		content_length,
+// 	}
 // for each request
 func LogFilter() restful.FilterFunction {
-	return func(
-		req *restful.Request,
-		resp *restful.Response,
-		chain *restful.FilterChain,
-	) {
+	return DefaultContainer.FilterFunc(func(ctx box.Ctx) {
 		start := time.Now()
-		chain.ProcessFilter(req, resp)
-		log.Info().
-			Str("remote_addr", strings.Split(req.Request.RemoteAddr, ":")[0]).
-			Str("method", req.Request.Method).
-			Str("uri", req.Request.URL.RequestURI()).
-			Str("proto", req.Request.Proto).
-			Int("status_code", resp.StatusCode()).
-			Dur("dur", time.Since(start)).
-			Int("content_length", resp.ContentLength()).Msg("req")
-	}
+		ctx.Next()
+		ctx.Logger.Info(log.BiuInternalInfo{
+			Extras: map[string]interface{}{
+				"remote_addr":    ctx.IP(),
+				"method":         ctx.Req().Method,
+				"uri":            ctx.Req().URL.RequestURI(),
+				"proto":          ctx.Req().Proto,
+				"status_code":    ctx.Response.StatusCode(),
+				"dur":            time.Since(start),
+				"content_length": ctx.Response.ContentLength(),
+			},
+		})
+	})
 }

@@ -5,39 +5,47 @@ import (
 
 	"github.com/emicklei/go-restful"
 	"github.com/mpvl/errc"
+	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/log"
 )
 
 // Handle transform a biu handler to a restful.RouteFunction.
 func Handle(f func(ctx box.Ctx)) restful.RouteFunction {
+	return HandleWithLogger(f, DefaultContainer.logger)
+}
+
+func HandleWithLogger(f func(ctx box.Ctx), logger log.ILogger) restful.RouteFunction {
 	return func(request *restful.Request, response *restful.Response) {
 		c := box.Ctx{
 			Request:  request,
 			Response: response,
+			Logger:   logger,
 		}
-		if !box.DisableErrHandler {
-			e := errc.Catch(new(error))
-			defer e.Handle()
-			c.ErrCatcher = e
-		}
+		e := errc.Catch(new(error))
+		defer e.Handle()
+		c.ErrCatcher = e
 		f(c)
 	}
 }
 
 // Filter transform a biu handler to a restful.FilterFunction
 func Filter(f func(ctx box.Ctx)) restful.FilterFunction {
+	return FilterWithLogger(f, DefaultContainer.logger)
+}
+
+func FilterWithLogger(f func(ctx box.Ctx), logger log.ILogger) restful.FilterFunction {
 	return func(request *restful.Request, response *restful.Response,
 		chain *restful.FilterChain) {
 		c := box.Ctx{
 			Request:     request,
 			Response:    response,
 			FilterChain: chain,
+			Logger:      logger,
 		}
-		if !box.DisableErrHandler {
-			e := errc.Catch(new(error))
-			defer e.Handle()
-			c.ErrCatcher = e
-		}
+		e := errc.Catch(new(error))
+		defer e.Handle()
+		c.ErrCatcher = e
 		f(c)
 	}
 }
@@ -54,13 +62,11 @@ func WrapHandler(f func(ctx box.Ctx)) http.HandlerFunc {
 
 // AuthFilter checks if request contains JWT,
 // and sets UserID in Attribute if exists,
-func AuthFilter(code int) restful.FilterFunction {
-	return Filter(func(ctx box.Ctx) {
-		userID, err := ctx.IsLogin()
-		if ctx.ContainsError(err, code) {
-			return
-		}
-		ctx.SetAttribute("UserID", userID)
-		ctx.ProcessFilter(ctx.Request, ctx.Response)
-	})
+func AuthFilter(code int, i ...*auth.Instance) restful.FilterFunction {
+	return FilterWithLogger(func(ctx box.Ctx) {
+		userID, err := ctx.IsLogin(i...)
+		ctx.Must(err, code)
+		ctx.SetAttribute(box.BiuAttrAuthUserID, userID)
+		ctx.Next()
+	}, DefaultContainer.logger)
 }

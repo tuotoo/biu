@@ -1,22 +1,22 @@
 package box_test
 
 import (
+	"errors"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/emicklei/go-restful"
-	"github.com/gavv/httpexpect"
-	"github.com/pkg/errors"
+	"github.com/gavv/httpexpect/v2"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
-	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
-func TestCtx_Must(t *testing.T) {
-	var tmpValue int
-	ws := biu.WS{WebService: &restful.WebService{}}
-	ws.Route(ws.GET("/must/{id}"),
+type mustCtl struct {
+	tmpValue int
+}
+
+func (ctl *mustCtl) WebService(ws biu.WS) {
+	ws.Route(ws.GET("/{id}"),
 		opt.RouteID("test.must"),
 		opt.RouteTo(func(ctx box.Ctx) {
 			i := ctx.Path("id").IntDefault(1)
@@ -27,11 +27,11 @@ func TestCtx_Must(t *testing.T) {
 				ctx.Must(errors.New("2"), 2, "OK")
 			case 3:
 				ctx.Must(errors.New("3"), 3, func() {
-					tmpValue = 1
+					ctl.tmpValue = 1
 				})
 			case 4:
 				ctx.Must(errors.New("4"), 4, "OK", func() {
-					tmpValue = 2
+					ctl.tmpValue = 2
 				})
 			}
 		}),
@@ -42,26 +42,32 @@ func TestCtx_Must(t *testing.T) {
 			4: "with func and arg %s",
 		}),
 	)
+}
+
+func TestCtx_Must(t *testing.T) {
 	c := biu.New()
-	c.Add(ws.WebService)
+	ctl := &mustCtl{}
+	c.AddServices("", nil, biu.NS{
+		NameSpace:  "must",
+		Controller: ctl,
+	})
 	s := httptest.NewServer(c)
 	defer s.Close()
-	log.UseConsoleLogger()
 	httpexpect.New(t, s.URL).GET("/must/1").Expect().JSON().Object().
 		ValueEqual("code", 1).ValueEqual("message", "normal err")
 	httpexpect.New(t, s.URL).GET("/must/2").Expect().JSON().Object().
 		ValueEqual("code", 2).ValueEqual("message", "with arg OK")
-	if tmpValue != 0 {
-		t.Errorf("expect func ok %d but got %d", 0, tmpValue)
+	if ctl.tmpValue != 0 {
+		t.Errorf("expect func ok %d but got %d", 0, ctl.tmpValue)
 	}
 	httpexpect.New(t, s.URL).GET("/must/3").Expect().JSON().Object().
 		ValueEqual("code", 3).ValueEqual("message", "with func")
-	if tmpValue != 1 {
-		t.Errorf("expect func ok %d but got %d", 1, tmpValue)
+	if ctl.tmpValue != 1 {
+		t.Errorf("expect func ok %d but got %d", 1, ctl.tmpValue)
 	}
 	httpexpect.New(t, s.URL).GET("/must/4").Expect().JSON().Object().
 		ValueEqual("code", 4).ValueEqual("message", "with func and arg OK")
-	if tmpValue != 2 {
-		t.Errorf("expect func ok %d but got %d", 2, tmpValue)
+	if ctl.tmpValue != 2 {
+		t.Errorf("expect func ok %d but got %d", 2, ctl.tmpValue)
 	}
 }

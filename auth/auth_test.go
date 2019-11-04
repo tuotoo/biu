@@ -11,11 +11,11 @@ import (
 )
 
 func ExampleSign() {
-	auth.JWTTimeout = 4 * time.Second
-	auth.JWTSecret = func(userID string) (secret []byte, err error) {
+	auth.JWTTimeout(4 * time.Second)
+	auth.JWTSecret(func(userID string) (secret []byte, err error) {
 		return []byte("hello world"), nil
-	}
-	auth.JWTRefreshTimeout = 5 * time.Second
+	})
+	auth.JWTRefreshTimeout(5 * time.Second)
 	token, _ := auth.Sign("user")
 	ctx := &box.Ctx{
 		Request: &restful.Request{

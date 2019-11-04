@@ -16,6 +16,8 @@ type NS struct {
 // WS extends *restful.WebService
 type WS struct {
 	*restful.WebService
+	Container *Container
+	errors    map[string]map[int]string
 }
 
 // CtlInterface is the interface of controllers

@@ -1,4 +1,4 @@
-package biu_test
+package main
 
 import (
 	"github.com/tuotoo/biu"
@@ -12,22 +12,12 @@ type Foo struct{}
 // WebService implements CtlInterface
 func (ctl Foo) WebService(ws biu.WS) {
 	ws.Route(ws.GET("/").Doc("Get Bar").
-		Param(ws.QueryParameter("num", "number").
-			DataType("integer")).
+		Param(ws.QueryParameter("num", "number")).
 		DefaultReturns("Bar", Bar{}),
 		opt.RouteID("example.foo"),
 		opt.RouteTo(ctl.getBar),
 		opt.RouteErrors(map[int]string{
-			100: "num not Number",
-		}),
-	)
-
-	ws.Route(ws.POST("/").
-		Doc("Post Req"),
-		opt.RouteID("example.post"),
-		opt.RouteAPI(ctl.post),
-		opt.RouteErrors(map[int]string{
-			100: "num not Number",
+			200: "%s is not a Number",
 		}),
 	)
 
@@ -44,21 +34,20 @@ type Bar struct {
 
 func (ctl Foo) getBar(ctx box.Ctx) {
 	num, err := ctx.Query("num").Int()
-	ctx.Must(err, 100)
+	if ctx.ContainsError(err, 200, ctx.QueryParameter("num")) {
+		return
+	}
 
 	ctx.ResponseJSON(Bar{Msg: "bar", Num: num})
 }
 
-func (ctl Foo) post(ctx box.Ctx, api struct {
-	Form struct{ Num int }
-}) {
-	ctx.ResponseJSON(Bar{Msg: "POST", Num: api.Form.Num})
-}
-
-func Example() {
+func main() {
 	c := biu.New()
-	c.Filter(biu.LogFilter())
-	c.AddServices("/v1", nil,
+	c.AddServices("/v1", opt.ServicesFuncArr{
+		opt.ServiceErrors(map[int]string{
+			100: "something goes wrong",
+		}),
+	},
 		biu.NS{
 			NameSpace:  "foo",
 			Controller: Foo{},
@@ -70,7 +59,7 @@ func Example() {
 	swaggerService := c.NewSwaggerService(biu.SwaggerInfo{
 		Title:        "Foo Bar",
 		Description:  "Foo Bar Service",
-		ContactName:  "TuoToo",
+		ContactName:  "tuotoo",
 		ContactEmail: "jqs7@tuotoo.com",
 		ContactURL:   "https://tuotoo.com",
 		Version:      "1.0.0",

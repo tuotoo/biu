@@ -13,17 +13,17 @@ import (
 
 // NewSwaggerService creates a swagger webservice in /swagger
 func (c *Container) NewSwaggerService(info SwaggerInfo) *restful.WebService {
-	return newSwaggerService(info, c.Container)
+	return newSwaggerService(c, info)
 }
 
 // NewSwaggerService creates a swagger webservice in /swagger
 func NewSwaggerService(info SwaggerInfo) *restful.WebService {
-	return newSwaggerService(info, restful.DefaultContainer)
+	return newSwaggerService(DefaultContainer, info)
 }
 
 func newSwaggerService(
+	container *Container,
 	info SwaggerInfo,
-	container *restful.Container,
 ) *restful.WebService {
 	if info.RouteSuffix == "" {
 		info.RouteSuffix = "swagger"
@@ -35,7 +35,7 @@ func newSwaggerService(
 		APIPath:                       info.RoutePrefix + info.RouteSuffix + ".json",
 		DisableCORS:                   info.DisableCORS,
 		WebServicesURL:                info.WebServicesURL,
-		PostBuildSwaggerObjectHandler: enrichSwaggerObject(info, container.ServeMux),
+		PostBuildSwaggerObjectHandler: enrichSwaggerObject(container, info, container.ServeMux),
 	}
 	route := info.RoutePrefix + info.RouteSuffix
 	container.ServeMux.Handle(route+"/",
@@ -55,7 +55,7 @@ func newSwaggerService(
 	return restfulspec.NewOpenAPIService(config)
 }
 
-func enrichSwaggerObject(info SwaggerInfo, serveMux *http.ServeMux) func(swo *spec.Swagger) {
+func enrichSwaggerObject(container *Container, info SwaggerInfo, serveMux *http.ServeMux) func(swo *spec.Swagger) {
 	return func(swo *spec.Swagger) {
 		contact := &spec.ContactInfo{
 			Name:  info.ContactName,
@@ -77,7 +77,7 @@ func enrichSwaggerObject(info SwaggerInfo, serveMux *http.ServeMux) func(swo *sp
 		swo.Info = &spec.Info{
 			InfoProps: infoProps,
 		}
-		swo.Tags = swaggerTags[serveMux]
+		swo.Tags = container.swaggerTags[serveMux]
 		swo.SecurityDefinitions = map[string]*spec.SecurityScheme{
 			"jwt": spec.APIKeyAuth("Authorization", "header"),
 		}
