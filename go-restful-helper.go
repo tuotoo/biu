@@ -144,9 +144,21 @@ func addService(
 	container *restful.Container,
 	wss ...NS,
 ) {
+	expr, err := newPathExpression(prefix)
+	if err != nil {
+		panic(err)
+	}
+	var inCommonNS bool
+	if expr.VarCount > 0 {
+		inCommonNS = true
+	}
+	commonWS := new(restful.WebService)
 	for _, v := range wss {
 		// build web service
 		ws := new(restful.WebService)
+		if inCommonNS {
+			ws = commonWS
+		}
 		path := prefix + "/" + v.NameSpace
 		ws.Path(path).Produces(restful.MIME_JSON)
 
@@ -162,7 +174,9 @@ func addService(
 		}
 
 		v.Controller.WebService(WS{WebService: ws})
-		container.Add(ws)
+		if !inCommonNS {
+			container.Add(ws)
+		}
 
 		// add swagger tags to routes of webservice
 		tagProps := spec.TagProps{
@@ -193,9 +207,15 @@ func addService(
 					r.Consumes = []string{restful.MIME_JSON}
 				}
 			}
-			routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
+			if !inCommonNS {
+				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
+			} else {
+				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{expr.VarNames[0]}
+			}
 		}
-
+	}
+	if inCommonNS {
+		container.Add(commonWS)
 	}
 }
 
