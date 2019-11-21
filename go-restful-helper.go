@@ -101,7 +101,12 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 
 	p1 := elm.FieldByName("rootPath").String()
 	p2 := elm.FieldByName("currentPath").String()
-	path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
+	path := strings.TrimRight(p1, "/") + "/"
+	if ws.namespace != "" {
+		path += ws.namespace + "/"
+		builder.Path(ws.namespace + p2)
+	}
+	path += strings.TrimLeft(p2, "/")
 	method := elm.FieldByName("httpMethod").String()
 	mapKey := path + " " + method
 
@@ -152,15 +157,17 @@ func addService(
 	if expr.VarCount > 0 {
 		inCommonNS = true
 	}
-	commonWS := new(restful.WebService)
+	commonWS := WS{WebService: new(restful.WebService)}
+	commonWS.Path(prefix).Produces(restful.MIME_JSON)
 	for _, v := range wss {
 		// build web service
-		ws := new(restful.WebService)
-		if inCommonNS {
-			ws = commonWS
-		}
+		ws := WS{WebService: new(restful.WebService)}
 		path := prefix + "/" + v.NameSpace
 		ws.Path(path).Produces(restful.MIME_JSON)
+		if inCommonNS {
+			ws = commonWS
+			ws.namespace = v.NameSpace
+		}
 
 		cfg := &opt.Services{}
 		for _, f := range opts {
@@ -173,9 +180,9 @@ func addService(
 			box.GlobalErrMap[k] = v
 		}
 
-		v.Controller.WebService(WS{WebService: ws})
+		v.Controller.WebService(ws)
 		if !inCommonNS {
-			container.Add(ws)
+			container.Add(ws.WebService)
 		}
 
 		// add swagger tags to routes of webservice
@@ -194,9 +201,6 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			log.Info().Str("path", r.Path).
-				Str("method", r.Method).
-				Msg("routers")
 			if routes[ri].Metadata == nil {
 				routes[ri].Metadata = make(map[string]interface{})
 			}
@@ -208,12 +212,15 @@ func addService(
 				}
 			}
 			if strings.HasPrefix(r.Path, path) {
+				log.Info().Str("path", r.Path).
+					Str("method", r.Method).
+					Msg("routers")
 				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
 			}
 		}
 	}
 	if inCommonNS {
-		container.Add(commonWS)
+		container.Add(commonWS.WebService)
 	}
 }
 
