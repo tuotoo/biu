@@ -181,6 +181,7 @@ func addService(
 			for _, f := range cfg.Filters {
 				ws.Filter(f)
 			}
+			filterAdded = true
 		}
 
 		v.Controller.WebService(ws)
