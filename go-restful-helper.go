@@ -157,8 +157,16 @@ func addService(
 	if expr.VarCount > 0 {
 		inCommonNS = true
 	}
+	cfg := &opt.Services{}
+	for _, f := range opts {
+		f(cfg)
+	}
+	for k, v := range cfg.Errors {
+		box.GlobalErrMap[k] = v
+	}
 	commonWS := WS{WebService: new(restful.WebService)}
 	commonWS.Path(prefix).Produces(restful.MIME_JSON)
+	var filterAdded bool
 	for _, v := range wss {
 		// build web service
 		ws := WS{WebService: new(restful.WebService)}
@@ -169,15 +177,10 @@ func addService(
 			ws.namespace = v.NameSpace
 		}
 
-		cfg := &opt.Services{}
-		for _, f := range opts {
-			f(cfg)
-		}
-		for _, f := range cfg.Filters {
-			ws.Filter(f)
-		}
-		for k, v := range cfg.Errors {
-			box.GlobalErrMap[k] = v
+		if (inCommonNS && !filterAdded) || !inCommonNS {
+			for _, f := range cfg.Filters {
+				ws.Filter(f)
+			}
 		}
 
 		v.Controller.WebService(ws)
