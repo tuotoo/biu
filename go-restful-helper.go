@@ -207,10 +207,8 @@ func addService(
 					r.Consumes = []string{restful.MIME_JSON}
 				}
 			}
-			if !inCommonNS {
+			if strings.HasPrefix(r.Path, path) {
 				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
-			} else {
-				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{expr.VarNames[0]}
 			}
 		}
 	}
