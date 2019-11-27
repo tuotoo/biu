@@ -15,6 +15,7 @@ type NS struct {
 
 // WS extends *restful.WebService
 type WS struct {
+	namespace string
 	*restful.WebService
 	Container *Container
 	errors    map[string]map[int]string

@@ -56,7 +56,12 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 
 	p1 := elm.FieldByName("rootPath").String()
 	p2 := elm.FieldByName("currentPath").String()
-	path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
+	path := strings.TrimRight(p1, "/") + "/"
+	if ws.namespace != "" {
+		path += ws.namespace + "/"
+		builder.Path(ws.namespace + p2)
+	}
+	path += strings.TrimLeft(p2, "/")
 	method := elm.FieldByName("httpMethod").String()
 	mapKey := path + " " + method
 
@@ -166,29 +171,53 @@ func addService(
 	container *Container,
 	wss ...NS,
 ) {
+	expr, err := internal.NewPathExpression(prefix)
+	if err != nil {
+		panic(err)
+	}
+	var inCommonNS bool
+	if expr.VarCount > 0 {
+		inCommonNS = true
+	}
+	cfg := &opt.Services{}
+	for _, f := range opts {
+		f(cfg)
+	}
+	for k, v := range cfg.Errors {
+		container.errors[k] = v
+	}
+	commonWS := WS{
+		WebService: new(restful.WebService),
+		Container:  container,
+		errors:     make(map[string]map[int]string),
+	}
+	commonWS.Path(prefix).Produces(restful.MIME_JSON)
+	var filterAdded bool
 	for _, v := range wss {
 		// build web service
-		ws := new(restful.WebService)
-		path := prefix + "/" + v.NameSpace
-		ws.Path(path).Produces(restful.MIME_JSON)
-
-		cfg := &opt.Services{}
-		for _, f := range opts {
-			f(cfg)
-		}
-		for _, f := range cfg.Filters {
-			ws.Filter(f)
-		}
-		for k, v := range cfg.Errors {
-			container.errors[k] = v
-		}
-
-		v.Controller.WebService(WS{
-			WebService: ws,
+		ws := WS{
+			WebService: new(restful.WebService),
 			Container:  container,
 			errors:     make(map[string]map[int]string),
-		})
-		container.Add(ws)
+		}
+		path := prefix + "/" + v.NameSpace
+		ws.Path(path).Produces(restful.MIME_JSON)
+		if inCommonNS {
+			ws = commonWS
+			ws.namespace = v.NameSpace
+		}
+
+		if (inCommonNS && !filterAdded) || !inCommonNS {
+			for _, f := range cfg.Filters {
+				ws.Filter(f)
+			}
+			filterAdded = true
+		}
+
+		v.Controller.WebService(ws)
+		if !inCommonNS {
+			container.Add(ws.WebService)
+		}
 
 		// add swagger tags to routes of webservice
 		tagProps := spec.TagProps{
@@ -206,10 +235,6 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
-				"PATH":   r.Path,
-				"METHOD": r.Method,
-			}})
 			if routes[ri].Metadata == nil {
 				routes[ri].Metadata = make(map[string]interface{})
 			}
@@ -220,9 +245,17 @@ func addService(
 					r.Consumes = []string{restful.MIME_JSON}
 				}
 			}
-			routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
+			if strings.HasPrefix(r.Path, path) {
+				container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
+					"PATH":   r.Path,
+					"METHOD": r.Method,
+				}})
+				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
+			}
 		}
-
+	}
+	if inCommonNS {
+		container.Add(commonWS.WebService)
 	}
 }
 
