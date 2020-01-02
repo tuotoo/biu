@@ -245,7 +245,7 @@ func addService(
 					r.Consumes = []string{restful.MIME_JSON}
 				}
 			}
-			if strings.HasPrefix(r.Path, path) {
+			if strings.HasPrefix(r.Path+"/", path+"/") {
 				container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
 					"PATH":   r.Path,
 					"METHOD": r.Method,
