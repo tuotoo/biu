@@ -215,7 +215,7 @@ func addService(
 					r.Consumes = []string{restful.MIME_JSON}
 				}
 			}
-			if strings.HasPrefix(r.Path, path) {
+			if strings.HasPrefix(r.Path+"/", path+"/") {
 				log.Info().Str("path", r.Path).
 					Str("method", r.Method).
 					Msg("routers")
