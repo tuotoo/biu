@@ -17,14 +17,14 @@ type pathExpression struct {
 	tokens       []string
 }
 
-//go:linkname newPathExpression github.com/emicklei/go-restful.newPathExpression
+//go:linkname newPathExpression github.com/emicklei/go-restful/v3.newPathExpression
 func newPathExpression(path string) (*pathExpression, error)
 
 func NewPathExpression(path string) (*pathExpression, error) {
 	return newPathExpression(path)
 }
 
-//go:linkname nameOfFunction github.com/emicklei/go-restful.nameOfFunction
+//go:linkname nameOfFunction github.com/emicklei/go-restful/v3.nameOfFunction
 func nameOfFunction(f interface{}) string
 
 func NameOfFunction(f interface{}) string {
