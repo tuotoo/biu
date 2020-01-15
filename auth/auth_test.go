@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
 )

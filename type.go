@@ -1,7 +1,7 @@
 package biu
 
 import (
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
 // NS contains configuration of a namespace

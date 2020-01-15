@@ -4,7 +4,7 @@ import (
 	"regexp"
 	_ "unsafe"
 
-	_ "github.com/emicklei/go-restful"
+	_ "github.com/emicklei/go-restful/v3"
 	_ "github.com/mailru/easyjson/gen"
 )
 

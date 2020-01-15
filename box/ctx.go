@@ -6,8 +6,8 @@ import (
 	"strings"
 	_ "unsafe"
 
-	"github.com/dgrijalva/jwt-go/request"
-	"github.com/emicklei/go-restful"
+	"github.com/dgrijalva/jwt-go/v4/request"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/mpvl/errc"
 	"github.com/tuotoo/biu/auth"

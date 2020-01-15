@@ -3,7 +3,7 @@ package biu
 import (
 	"net/http"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/mpvl/errc"
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
