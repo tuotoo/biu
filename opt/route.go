@@ -19,6 +19,12 @@ type RouteFunc func(*Route)
 type FieldType int8
 
 const (
+	APITagName   = "name"
+	APITagDesc   = "desc"
+	APITagFormat = "format"
+)
+
+const (
 	FieldUnknown FieldType = iota
 	FieldHeader
 	FieldPath
@@ -138,7 +144,7 @@ func RouteAPI(f interface{}) RouteFunc {
 		params = append(params, ParamOpt{
 			FieldType: FieldBody,
 			Body:      bodyExampleValue,
-			Desc:      body.Tag.Get("desc"),
+			Desc:      body.Tag.Get(APITagDesc),
 		})
 	}
 	if ret, ok := second.FieldByName(FieldReturn.String()); ok {
@@ -151,7 +157,7 @@ func RouteAPI(f interface{}) RouteFunc {
 		params = append(params, ParamOpt{
 			FieldType: FieldReturn,
 			Return:    reflect.New(ret.Type.In(0)).Interface(),
-			Desc:      ret.Tag.Get("desc"),
+			Desc:      ret.Tag.Get(APITagDesc),
 		})
 	}
 
@@ -295,8 +301,11 @@ func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt 
 		if unicode.IsLower([]rune(fieldName)[0]) {
 			continue
 		}
-		if tagName, ok := t.Field(i).Tag.Lookup("name"); ok {
+		if tagName, ok := t.Field(i).Tag.Lookup(APITagName); ok {
 			name = tagName
+		}
+		if tagFormat, ok := t.Field(i).Tag.Lookup(APITagFormat); ok {
+			format = tagFormat
 		}
 		params = append(params, ParamOpt{
 			FieldType: field,
@@ -305,7 +314,7 @@ func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt 
 			Format:    format,
 			IsMulti:   multi,
 			FieldName: fieldName,
-			Desc:      t.Field(i).Tag.Get("desc"),
+			Desc:      t.Field(i).Tag.Get(APITagDesc),
 		})
 	}
 	return params
