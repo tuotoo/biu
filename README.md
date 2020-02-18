@@ -32,3 +32,7 @@ All our projects follow the [GitFlow branching model](http://nvie.com/posts/a-su
 - [easyjson](https://github.com/mailru/easyjson)
 - [pocket](https://github.com/Southclaws/pocket)
 - ...and many more Open Source *Cool* Go Projects :star2:
+
+kindly supperted by [Jetbrains Open Source License](https://www.jetbrains.com/community/opensource/?from=biu)
+
+<img src="https://user-images.githubusercontent.com/12208686/74745975-a3d2cb80-529f-11ea-8fbf-44b2758d8780.png" width="200" height="200"></img>
