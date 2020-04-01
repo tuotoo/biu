@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gavv/httpexpect/v2"
+	"github.com/stretchr/testify/assert"
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/opt"
@@ -65,4 +66,56 @@ func TestContainer_AddServices(t *testing.T) {
 		ValueEqual("code", 2).ValueEqual("message", "err msg global")
 	httpexpect.New(t, s.URL).GET("/add-service/3").Expect().JSON().Object().
 		ValueEqual("code", 0).ValueEqual("data", "COOL TRANSFORM COMPLETED")
+}
+
+type addSrvCtrl struct {
+	subPath string
+}
+
+func (a addSrvCtrl) WebService(ws biu.WS) {
+	ws.Route(ws.GET(a.subPath))
+}
+
+func TestAddServices(t *testing.T) {
+	table := []struct {
+		prefix      string
+		namespace   string
+		subPath     string
+		expectRoute string
+	}{
+		{
+			prefix:      "",
+			namespace:   "",
+			subPath:     "",
+			expectRoute: "/",
+		},
+		{
+			prefix:      "/",
+			namespace:   "/",
+			subPath:     "/",
+			expectRoute: "/",
+		},
+		{
+			prefix:      "",
+			namespace:   "/",
+			subPath:     "/",
+			expectRoute: "/",
+		},
+		{
+			prefix:      "/v",
+			namespace:   "/",
+			subPath:     "/p",
+			expectRoute: "/v/p",
+		},
+	}
+	for _, v := range table {
+		c := biu.New()
+		c.AddServices(v.prefix, nil, biu.NS{
+			NameSpace: v.namespace,
+			Controller: addSrvCtrl{
+				subPath: v.subPath,
+			},
+		})
+		assert.Equal(t, v.expectRoute, c.RegisteredWebServices()[0].Routes()[0].Path)
+	}
 }
