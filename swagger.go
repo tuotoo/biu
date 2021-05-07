@@ -12,7 +12,7 @@ import (
 )
 
 //go:embed swagger/*
-var swaggerContent embed.FS
+var swagger embed.FS
 
 // NewSwaggerService creates a swagger webservice in /swagger
 func (c *Container) NewSwaggerService(info SwaggerInfo) *restful.WebService {
@@ -49,7 +49,7 @@ func newSwaggerService(
 				r2.URL = new(url.URL)
 				*r2.URL = *r.URL
 				r2.URL.Path = "swagger" + p
-				http.FileServer(http.FS(swaggerContent)).ServeHTTP(w, r2)
+				http.FileServer(http.FS(swagger)).ServeHTTP(w, r2)
 			} else {
 				http.NotFound(w, r)
 			}
