@@ -78,4 +78,5 @@ func Example() {
 	})
 	c.Add(swaggerService)
 	c.Run(":8080", nil)
+	// Output: Listening Addr: [::]:8080
 }

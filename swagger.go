@@ -1,6 +1,7 @@
 package biu
 
 import (
+	"embed"
 	"net/http"
 	"net/url"
 	"strings"
@@ -8,8 +9,10 @@ import (
 	"github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-openapi/spec"
-	"github.com/tuotoo/biu/swagger-go"
 )
+
+//go:embed swagger/*
+var swaggerContent embed.FS
 
 // NewSwaggerService creates a swagger webservice in /swagger
 func (c *Container) NewSwaggerService(info SwaggerInfo) *restful.WebService {
@@ -46,7 +49,7 @@ func newSwaggerService(
 				r2.URL = new(url.URL)
 				*r2.URL = *r.URL
 				r2.URL.Path = "swagger" + p
-				http.FileServer(swagger.FS(false)).ServeHTTP(w, r2)
+				http.FileServer(http.FS(swaggerContent)).ServeHTTP(w, r2)
 			} else {
 				http.NotFound(w, r)
 			}
