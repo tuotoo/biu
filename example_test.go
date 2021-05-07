@@ -1,3 +1,5 @@
+// +build Example
+
 package biu_test
 
 import (
