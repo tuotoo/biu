@@ -61,13 +61,17 @@ func newSwaggerService(
 func enrichSwaggerObject(container *Container, info SwaggerInfo, serveMux *http.ServeMux) func(swo *spec.Swagger) {
 	return func(swo *spec.Swagger) {
 		contact := &spec.ContactInfo{
-			Name:  info.ContactName,
-			Email: info.ContactEmail,
-			URL:   info.ContactURL,
+			ContactInfoProps: spec.ContactInfoProps{
+				Name:  info.ContactName,
+				Email: info.ContactEmail,
+				URL:   info.ContactURL,
+			},
 		}
 		license := &spec.License{
-			Name: info.LicenseName,
-			URL:  info.LicenseURL,
+			LicenseProps: spec.LicenseProps{
+				Name: info.LicenseName,
+				URL:  info.LicenseURL,
+			},
 		}
 		infoProps := spec.InfoProps{
 			Title:          info.Title,
