@@ -224,6 +224,8 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 		return
 	}
 	switch field.Kind() {
+	case reflect.Ptr:
+		setPtr(field, p)
 	case reflect.String:
 		field.SetString(p.StringDefault(""))
 	case reflect.Bool:
@@ -293,6 +295,95 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 	}
 }
 
+func setPtr(field reflect.Value, p param.Parameter) {
+	switch field.Type().Elem().Kind() {
+	case reflect.String:
+		v, err := p.String()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Bool:
+		v, err := p.Bool()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int:
+		v, err := p.Int()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int8:
+		v, err := p.Int8()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int16:
+		v, err := p.Int16()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int32:
+		v, err := p.Int32()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int64:
+		v, err := p.Int64()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint:
+		v, err := p.Uint()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint8:
+		v, err := p.Uint8()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint16:
+		v, err := p.Uint16()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint32:
+		v, err := p.Uint32()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint64:
+		v, err := p.Uint64()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Float32:
+		v, err := p.Float32()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Float64:
+		v, err := p.Float64()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	}
+}
+
 func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt {
 	for i := 0; i < t.NumField(); i++ {
 		typ, format, multi := getBaseType(t.Field(i).Type)
@@ -349,6 +440,9 @@ func ExtraPathDocs(docs ...string) RouteFunc {
 }
 
 func getBaseType(t reflect.Type) (typ, format string, multi bool) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	switch t.Kind() {
 	case reflect.String:
 		typ = "string"
