@@ -2,7 +2,7 @@ package opt
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"reflect"
 	"time"
@@ -217,7 +217,7 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 		p = ctx.Header(opt.Name)
 		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
 	case FieldBody:
-		bodyBs, _ := ioutil.ReadAll(ctx.Req().Body)
+		bodyBs, _ := io.ReadAll(ctx.Req().Body)
 		p = param.NewParameter([]string{string(bodyBs)}, nil)
 		field = sv.FieldByName(opt.FieldType.String())
 	default:
