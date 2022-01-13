@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"reflect"
+	"strings"
 	"time"
 	"unicode"
 
@@ -22,6 +23,7 @@ const (
 	APITagName   = "name"
 	APITagDesc   = "desc"
 	APITagFormat = "format"
+	APITagIgnore = "-"
 )
 
 const (
@@ -386,16 +388,31 @@ func setPtr(field reflect.Value, p param.Parameter) {
 
 func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt {
 	for i := 0; i < t.NumField(); i++ {
-		typ, format, multi := getBaseType(t.Field(i).Type)
+		tags := make(map[string]string)
+		if cfg, ok := t.Field(i).Tag.Lookup("biu"); ok {
+			items := strings.Split(cfg, ";")
+			for _, item := range items {
+				sp := strings.Split(item, ":")
+				if len(sp) > 1 {
+					tags[sp[0]] = sp[1]
+				} else {
+					tags[sp[0]] = ""
+				}
+			}
+		}
+		if _, ok := tags[APITagIgnore]; ok {
+			continue
+		}
 		fieldName := t.Field(i).Name
 		name := internal.CamelToSnake(fieldName)
 		if unicode.IsLower([]rune(fieldName)[0]) {
 			continue
 		}
-		if tagName, ok := t.Field(i).Tag.Lookup(APITagName); ok {
+		if tagName, ok := tags[APITagName]; ok {
 			name = tagName
 		}
-		if tagFormat, ok := t.Field(i).Tag.Lookup(APITagFormat); ok {
+		typ, format, multi := getBaseType(t.Field(i).Type)
+		if tagFormat, ok := tags[APITagFormat]; ok {
 			format = tagFormat
 		}
 		params = append(params, ParamOpt{
@@ -405,7 +422,7 @@ func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt 
 			Format:    format,
 			IsMulti:   multi,
 			FieldName: fieldName,
-			Desc:      t.Field(i).Tag.Get(APITagDesc),
+			Desc:      tags[APITagDesc],
 		})
 	}
 	return params

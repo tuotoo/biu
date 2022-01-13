@@ -10,9 +10,12 @@ require (
 	github.com/gin-gonic/gin v1.7.1
 	github.com/go-openapi/spec v0.20.3
 	github.com/mailru/easyjson v0.7.6
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/mpvl/errc v0.0.0-20171108090206-1ae3d1064ca2
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+)
+
+require (
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 )
