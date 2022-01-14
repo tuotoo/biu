@@ -83,7 +83,7 @@ func ParseToken(token string) (*jwt.Token, error) {
 // RefreshToken accepts a valid token and
 // returns a new token with new expire time.
 func (i *Instance) RefreshToken(token string) (newToken string, err error) {
-	t, err := ParseToken(token)
+	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", xerrors.Errorf("parse token: %w", err)
 	}
