@@ -124,7 +124,7 @@ func RefreshToken(token string) (newToken string, err error) {
 
 // CheckToken accept a jwt token and returns the uid in token.
 func (i *Instance) CheckToken(token string) (userID string, err error) {
-	t, err := ParseToken(token)
+	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", xerrors.Errorf("parse token: %w", err)
 	}
