@@ -88,7 +88,7 @@ func enrichSwaggerObject(container *Container, info SwaggerInfo, serveMux *http.
 		swo.SecurityDefinitions = map[string]*spec.SecurityScheme{
 			"jwt": spec.APIKeyAuth("Authorization", "header"),
 		}
-		for _, ws := range restful.RegisteredWebServices() {
+		for _, ws := range container.RegisteredWebServices() {
 			for _, route := range ws.Routes() {
 				processAuth(swo, route)
 			}
