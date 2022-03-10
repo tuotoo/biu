@@ -296,6 +296,7 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 		addr := tcpListener.Addr()
 		addrChan <- addr.String()
 	}
+	srv.Addr = tcpListener.Addr().String()
 	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
 }
 
@@ -313,7 +314,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 		}
 	}
 
-	server := &http.Server{
+	c.Server = &http.Server{
 		Addr:    addr,
 		Handler: c,
 	}
@@ -321,7 +322,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 
 	go func() {
 		c.logger.Info(log.BiuInternalInfo{
-			Err: xerrors.Errorf("listen and serve: %w", ListenAndServe(server, addrChan)),
+			Err: xerrors.Errorf("listen and serve: %w", ListenAndServe(c.Server, addrChan)),
 		})
 		if cfg.Cancel != nil {
 			cfg.Cancel()
@@ -334,6 +335,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 				"Listening Addr": addr,
 			},
 		})
+		cfg.AfterStart()
 	case <-time.After(time.Second):
 		c.logger.Fatal(log.BiuInternalInfo{
 			Err: xerrors.New("start server timeout"),
@@ -349,7 +351,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 	})
 
 	cfg.BeforeShutDown()
-	c.logger.Info(server.Shutdown(cfg.Ctx))
+	c.logger.Info(c.Server.Shutdown(cfg.Ctx))
 	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
 }

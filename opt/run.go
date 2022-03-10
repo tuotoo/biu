@@ -11,8 +11,15 @@ type RunFunc func(*Run)
 type Run struct {
 	BeforeShutDown func()
 	AfterShutDown  func()
+	AfterStart     func()
 	Ctx            context.Context
 	Cancel         context.CancelFunc
+}
+
+func AfterStart(f func()) RunFunc {
+	return func(opt *Run) {
+		opt.AfterStart = f
+	}
 }
 
 // BeforeShutDown will run before http server shuts down.

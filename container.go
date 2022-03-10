@@ -17,6 +17,7 @@ var DefaultContainer = New(restful.DefaultContainer)
 // Container of restful
 type Container struct {
 	*restful.Container
+	*http.Server
 	swaggerTags map[*http.ServeMux][]spec.Tag
 	errors      map[int]string
 	routeID     map[string]string
