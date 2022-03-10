@@ -31,7 +31,9 @@ func newSwaggerService(
 	if info.RouteSuffix == "" {
 		info.RouteSuffix = "swagger"
 	}
-	info.RoutePrefix = "/" + strings.Trim(info.RoutePrefix, "/")
+	if info.RoutePrefix != "" {
+		info.RoutePrefix = "/" + strings.Trim(info.RoutePrefix, "/")
+	}
 	info.RouteSuffix = "/" + strings.Trim(info.RouteSuffix, "/")
 	config := restfulspec.Config{
 		WebServices:                   container.RegisteredWebServices(),
