@@ -6,8 +6,8 @@ require (
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	github.com/emicklei/go-restful-openapi/v2 v2.3.0
 	github.com/emicklei/go-restful/v3 v3.5.1
-	github.com/gavv/httpexpect/v2 v2.2.0
-	github.com/gin-gonic/gin v1.7.1
+	github.com/gavv/httpexpect/v2 v2.3.1
+	github.com/gin-gonic/gin v1.7.7
 	github.com/go-openapi/spec v0.20.3
 	github.com/mailru/easyjson v0.7.6
 	github.com/mpvl/errc v0.0.0-20171108090206-1ae3d1064ca2
