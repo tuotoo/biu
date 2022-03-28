@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"sort"
 	"strings"
 )
@@ -26,7 +27,7 @@ func (dl DefaultLogger) Info(i interface{}) {
 	}
 	s, err := dl.toStr(i)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return
 	}
 	log.Println(s)
@@ -71,6 +72,6 @@ func (dl DefaultLogger) toStr(i interface{}) (string, error) {
 	case error:
 		return fmt.Sprintf("%+v", v), v
 	default:
-		return "", errors.New("type not found")
+		return "", errors.New(reflect.TypeOf(i).String() + " not found")
 	}
 }

@@ -352,7 +352,11 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 	})
 
 	cfg.BeforeShutDown()
-	c.logger.Info(c.Server.Shutdown(cfg.Ctx))
+	c.logger.Info(log.BiuInternalInfo{
+		Extras: map[string]interface{}{
+			"Server Shutdown": c.Server.Shutdown(cfg.Ctx),
+		},
+	})
 	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
 }
