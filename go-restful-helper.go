@@ -303,6 +303,7 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 func run(addr string, c *Container, opts ...opt.RunFunc) {
 	nCtx, nCancel := context.WithCancel(context.Background())
 	cfg := &opt.Run{
+		AfterStart:     func() {},
 		BeforeShutDown: func() {},
 		AfterShutDown:  func() {},
 		Ctx:            nCtx,
