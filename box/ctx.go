@@ -219,6 +219,15 @@ func (ctx *Ctx) Header(name string) param.Parameter {
 	return param.NewParameter([]string{ctx.HeaderParameter(name)}, nil)
 }
 
+func filterFlags(content string) string {
+	for i, char := range content {
+		if char == ' ' || char == ';' {
+			return content[:i]
+		}
+	}
+	return content
+}
+
 // Bind checks the Content-Type to select a binding engine automatically,
 // Depending the "Content-Type" header different bindings are used:
 //     "application/json" --> JSON binding
@@ -228,7 +237,7 @@ func (ctx *Ctx) Header(name string) param.Parameter {
 // It decodes the json payload into the struct specified as a pointer.
 // It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
 func (ctx *Ctx) Bind(obj interface{}) error {
-	b := binding.Default(ctx.Req().Method, ctx.Request.HeaderParameter("Content-Type"))
+	b := binding.Default(ctx.Req().Method, filterFlags(ctx.Request.HeaderParameter("Content-Type")))
 	return ctx.BindWith(obj, b)
 }
 
