@@ -15,8 +15,8 @@ github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1/go.mod h1:+hnT3ywWDTAFrW5aE+u2Sa/
 github.com/emicklei/go-restful-openapi/v2 v2.3.0 h1:tDgSCzQrkk4N+Isos0zGBYX/GTINjmQuP9BvITbEe38=
 github.com/emicklei/go-restful-openapi/v2 v2.3.0/go.mod h1:bs67E3SEVgSmB3qDuRLqpS0NcpheqtsCCMhW2/jml1E=
 github.com/emicklei/go-restful/v3 v3.0.0-rc2/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
-github.com/emicklei/go-restful/v3 v3.5.1 h1:ZYmmu3rxJuiOaopbU3w+6xk12ncKBpM9Y2ttkWNRLf4=
-github.com/emicklei/go-restful/v3 v3.5.1/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
+github.com/emicklei/go-restful/v3 v3.8.0 h1:eCZ8ulSerjdAiaNpF7GxXIE7ZCMo1moN1qX+S609eVw=
+github.com/emicklei/go-restful/v3 v3.8.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/fasthttp/websocket v1.4.3-rc.6 h1:omHqsl8j+KXpmzRjF8bmzOSYJ8GnS0E3efi1wYT+niY=
 github.com/fasthttp/websocket v1.4.3-rc.6/go.mod h1:43W9OM2T8FeXpCWMsBd9Cb7nE2CACNqNvCqQCoty/Lc=
 github.com/fatih/structs v1.0.0 h1:BrX964Rv5uQ3wwS+KRUAJCBBw5PQmgJfJ6v4yly5QwU=
