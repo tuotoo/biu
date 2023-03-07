@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	github.com/emicklei/go-restful-openapi/v2 v2.3.0
-	github.com/emicklei/go-restful/v3 v3.5.1
+	github.com/emicklei/go-restful/v3 v3.10.1
 	github.com/gavv/httpexpect/v2 v2.3.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-openapi/spec v0.20.3

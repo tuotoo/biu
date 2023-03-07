@@ -40,5 +40,5 @@ func TestNewSwaggerService(t *testing.T) {
 	}).Routes()
 	assert.Len(t, routes, 1)
 	route := routes[0]
-	assert.Equal(t, "GET /v1/swagger.json/", route.String())
+	assert.Equal(t, "GET /v1/swagger.json", route.String())
 }
