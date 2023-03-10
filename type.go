@@ -1,7 +1,7 @@
 package biu
 
 import (
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
 // NS contains configuration of a namespace
@@ -15,6 +15,7 @@ type NS struct {
 
 // WS extends *restful.WebService
 type WS struct {
+	namespace string
 	*restful.WebService
 	Container *Container
 	errors    map[string]map[int]string

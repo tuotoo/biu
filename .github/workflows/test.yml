@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  build:
+    name: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.16]
+    steps:
+    - name: Set up Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v1
+      with:
+        go-version: ${{ matrix.go-version }}
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    - name: Get dependencies
+      run: go mod download
+    - name: vet
+      run: go vet ./...
+    - name: test
+      run: go test -race -v ./...

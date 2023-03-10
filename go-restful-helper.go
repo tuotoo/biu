@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/emicklei/go-restful"
-	"github.com/emicklei/go-restful-openapi"
+	"github.com/emicklei/go-restful-openapi/v2"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/gavv/httpexpect/v2"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/box"
@@ -56,7 +56,12 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 
 	p1 := elm.FieldByName("rootPath").String()
 	p2 := elm.FieldByName("currentPath").String()
-	path := strings.TrimRight(p1, "/") + "/" + strings.TrimLeft(p2, "/")
+	path := strings.TrimRight(p1, "/") + "/"
+	if ws.namespace != "" {
+		path += ws.namespace + "/"
+		builder.Path(ws.namespace + p2)
+	}
+	path += strings.TrimLeft(p2, "/")
 	method := elm.FieldByName("httpMethod").String()
 	mapKey := path + " " + method
 
@@ -166,29 +171,53 @@ func addService(
 	container *Container,
 	wss ...NS,
 ) {
+	expr, err := internal.NewPathExpression(prefix)
+	if err != nil {
+		panic(err)
+	}
+	var inCommonNS bool
+	if expr.VarCount > 0 {
+		inCommonNS = true
+	}
+	cfg := &opt.Services{}
+	for _, f := range opts {
+		f(cfg)
+	}
+	for k, v := range cfg.Errors {
+		container.errors[k] = v
+	}
+	commonWS := WS{
+		WebService: new(restful.WebService),
+		Container:  container,
+		errors:     make(map[string]map[int]string),
+	}
+	commonWS.Path(prefix).Produces(restful.MIME_JSON)
+	var filterAdded bool
 	for _, v := range wss {
 		// build web service
-		ws := new(restful.WebService)
-		path := prefix + "/" + v.NameSpace
-		ws.Path(path).Produces(restful.MIME_JSON)
-
-		cfg := &opt.Services{}
-		for _, f := range opts {
-			f(cfg)
-		}
-		for _, f := range cfg.Filters {
-			ws.Filter(f)
-		}
-		for k, v := range cfg.Errors {
-			container.errors[k] = v
-		}
-
-		v.Controller.WebService(WS{
-			WebService: ws,
+		ws := WS{
+			WebService: new(restful.WebService),
 			Container:  container,
 			errors:     make(map[string]map[int]string),
-		})
-		container.Add(ws)
+		}
+		path := "/" + strings.Trim("/"+strings.Trim(prefix, "/")+"/"+strings.Trim(v.NameSpace, "/"), "/")
+		ws.Path(path).Produces(restful.MIME_JSON)
+		if inCommonNS {
+			ws = commonWS
+			ws.namespace = v.NameSpace
+		}
+
+		if (inCommonNS && !filterAdded) || !inCommonNS {
+			for _, f := range cfg.Filters {
+				ws.Filter(f)
+			}
+			filterAdded = true
+		}
+
+		v.Controller.WebService(ws)
+		if !inCommonNS {
+			container.Add(ws.WebService)
+		}
 
 		// add swagger tags to routes of webservice
 		tagProps := spec.TagProps{
@@ -206,10 +235,6 @@ func addService(
 		})
 		routes := ws.Routes()
 		for ri, r := range routes {
-			container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
-				"PATH":   r.Path,
-				"METHOD": r.Method,
-			}})
 			if routes[ri].Metadata == nil {
 				routes[ri].Metadata = make(map[string]interface{})
 			}
@@ -220,9 +245,17 @@ func addService(
 					r.Consumes = []string{restful.MIME_JSON}
 				}
 			}
-			routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
+			if strings.HasPrefix(strings.TrimRight(r.Path, "/")+"/", strings.TrimRight(path, "/")+"/") {
+				container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
+					"PATH":   r.Path,
+					"METHOD": r.Method,
+				}})
+				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
+			}
 		}
-
+	}
+	if inCommonNS {
+		container.Add(commonWS.WebService)
 	}
 }
 
@@ -263,12 +296,14 @@ func ListenAndServe(srv *http.Server, addrChan chan<- string) error {
 		addr := tcpListener.Addr()
 		addrChan <- addr.String()
 	}
+	srv.Addr = tcpListener.Addr().String()
 	return srv.Serve(tcpKeepAliveListener{TCPListener: tcpListener})
 }
 
 func run(addr string, c *Container, opts ...opt.RunFunc) {
 	nCtx, nCancel := context.WithCancel(context.Background())
 	cfg := &opt.Run{
+		AfterStart:     func() {},
 		BeforeShutDown: func() {},
 		AfterShutDown:  func() {},
 		Ctx:            nCtx,
@@ -280,7 +315,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 		}
 	}
 
-	server := &http.Server{
+	c.Server = &http.Server{
 		Addr:    addr,
 		Handler: c,
 	}
@@ -288,7 +323,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 
 	go func() {
 		c.logger.Info(log.BiuInternalInfo{
-			Err: xerrors.Errorf("listen and serve: %w", ListenAndServe(server, addrChan)),
+			Err: xerrors.Errorf("listen and serve: %w", ListenAndServe(c.Server, addrChan)),
 		})
 		if cfg.Cancel != nil {
 			cfg.Cancel()
@@ -301,6 +336,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 				"Listening Addr": addr,
 			},
 		})
+		cfg.AfterStart()
 	case <-time.After(time.Second):
 		c.logger.Fatal(log.BiuInternalInfo{
 			Err: xerrors.New("start server timeout"),
@@ -316,7 +352,11 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 	})
 
 	cfg.BeforeShutDown()
-	c.logger.Info(server.Shutdown(cfg.Ctx))
+	c.logger.Info(log.BiuInternalInfo{
+		Extras: map[string]interface{}{
+			"Server Shutdown": c.Server.Shutdown(cfg.Ctx),
+		},
+	})
 	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
 }

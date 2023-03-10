@@ -1,6 +1,6 @@
 package opt
 
-import "github.com/emicklei/go-restful"
+import "github.com/emicklei/go-restful/v3"
 
 // ServicesFunc is the type of biu.AddServices options.
 type ServicesFunc func(*Services)

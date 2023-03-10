@@ -1,3 +1,6 @@
+//go:build Example
+// +build Example
+
 package biu_test
 
 import (
@@ -39,18 +42,18 @@ func (ctl Foo) WebService(ws biu.WS) {
 // Bar is the response of getBar
 type Bar struct {
 	Msg string `json:"msg"`
-	Num int    `json:"num"`
+	Num *int   `json:"num"`
 }
 
 func (ctl Foo) getBar(ctx box.Ctx) {
 	num, err := ctx.Query("num").Int()
 	ctx.Must(err, 100)
 
-	ctx.ResponseJSON(Bar{Msg: "bar", Num: num})
+	ctx.ResponseJSON(Bar{Msg: "bar", Num: &num})
 }
 
 func (ctl Foo) post(ctx box.Ctx, api struct {
-	Form struct{ Num int }
+	Form struct{ Num *int }
 }) {
 	ctx.ResponseJSON(Bar{Msg: "POST", Num: api.Form.Num})
 }
@@ -78,4 +81,5 @@ func Example() {
 	})
 	c.Add(swaggerService)
 	c.Run(":8080", nil)
+	// Output: Listening Addr: [::]:8080
 }

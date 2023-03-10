@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/v4"
 	"golang.org/x/xerrors"
 )
 
@@ -83,7 +83,7 @@ func ParseToken(token string) (*jwt.Token, error) {
 // RefreshToken accepts a valid token and
 // returns a new token with new expire time.
 func (i *Instance) RefreshToken(token string) (newToken string, err error) {
-	t, err := ParseToken(token)
+	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", xerrors.Errorf("parse token: %w", err)
 	}
@@ -124,7 +124,7 @@ func RefreshToken(token string) (newToken string, err error) {
 
 // CheckToken accept a jwt token and returns the uid in token.
 func (i *Instance) CheckToken(token string) (userID string, err error) {
-	t, err := ParseToken(token)
+	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", xerrors.Errorf("parse token: %w", err)
 	}

@@ -2,9 +2,10 @@ package opt
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"reflect"
+	"strings"
 	"time"
 	"unicode"
 
@@ -17,6 +18,13 @@ import (
 type RouteFunc func(*Route)
 
 type FieldType int8
+
+const (
+	APITagName   = "name"
+	APITagDesc   = "desc"
+	APITagFormat = "format"
+	APITagIgnore = "-"
+)
 
 const (
 	FieldUnknown FieldType = iota
@@ -138,7 +146,7 @@ func RouteAPI(f interface{}) RouteFunc {
 		params = append(params, ParamOpt{
 			FieldType: FieldBody,
 			Body:      bodyExampleValue,
-			Desc:      body.Tag.Get("desc"),
+			Desc:      body.Tag.Get(APITagDesc),
 		})
 	}
 	if ret, ok := second.FieldByName(FieldReturn.String()); ok {
@@ -151,7 +159,7 @@ func RouteAPI(f interface{}) RouteFunc {
 		params = append(params, ParamOpt{
 			FieldType: FieldReturn,
 			Return:    reflect.New(ret.Type.In(0)).Interface(),
-			Desc:      ret.Tag.Get("desc"),
+			Desc:      ret.Tag.Get(APITagDesc),
 		})
 	}
 
@@ -211,13 +219,15 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 		p = ctx.Header(opt.Name)
 		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
 	case FieldBody:
-		bodyBs, _ := ioutil.ReadAll(ctx.Req().Body)
+		bodyBs, _ := io.ReadAll(ctx.Req().Body)
 		p = param.NewParameter([]string{string(bodyBs)}, nil)
 		field = sv.FieldByName(opt.FieldType.String())
 	default:
 		return
 	}
 	switch field.Kind() {
+	case reflect.Ptr:
+		setPtr(field, p)
 	case reflect.String:
 		field.SetString(p.StringDefault(""))
 	case reflect.Bool:
@@ -287,16 +297,123 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 	}
 }
 
+func setPtr(field reflect.Value, p param.Parameter) {
+	switch field.Type().Elem().Kind() {
+	case reflect.String:
+		v, err := p.String()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Bool:
+		v, err := p.Bool()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int:
+		v, err := p.Int()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int8:
+		v, err := p.Int8()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int16:
+		v, err := p.Int16()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int32:
+		v, err := p.Int32()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Int64:
+		v, err := p.Int64()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint:
+		v, err := p.Uint()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint8:
+		v, err := p.Uint8()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint16:
+		v, err := p.Uint16()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint32:
+		v, err := p.Uint32()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Uint64:
+		v, err := p.Uint64()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Float32:
+		v, err := p.Float32()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	case reflect.Float64:
+		v, err := p.Float64()
+		if err != nil {
+			return
+		}
+		field.Set(reflect.ValueOf(&v))
+	}
+}
+
 func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt {
 	for i := 0; i < t.NumField(); i++ {
-		typ, format, multi := getBaseType(t.Field(i).Type)
+		tags := make(map[string]string)
+		if cfg, ok := t.Field(i).Tag.Lookup("biu"); ok {
+			items := strings.Split(cfg, ";")
+			for _, item := range items {
+				sp := strings.Split(item, ":")
+				if len(sp) > 1 {
+					tags[sp[0]] = sp[1]
+				} else {
+					tags[sp[0]] = ""
+				}
+			}
+		}
+		if _, ok := tags[APITagIgnore]; ok {
+			continue
+		}
 		fieldName := t.Field(i).Name
 		name := internal.CamelToSnake(fieldName)
 		if unicode.IsLower([]rune(fieldName)[0]) {
 			continue
 		}
-		if tagName, ok := t.Field(i).Tag.Lookup("name"); ok {
+		if tagName, ok := tags[APITagName]; ok {
 			name = tagName
+		}
+		typ, format, multi := getBaseType(t.Field(i).Type)
+		if tagFormat, ok := tags[APITagFormat]; ok {
+			format = tagFormat
 		}
 		params = append(params, ParamOpt{
 			FieldType: field,
@@ -305,7 +422,7 @@ func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt 
 			Format:    format,
 			IsMulti:   multi,
 			FieldName: fieldName,
-			Desc:      t.Field(i).Tag.Get("desc"),
+			Desc:      tags[APITagDesc],
 		})
 	}
 	return params
@@ -340,6 +457,9 @@ func ExtraPathDocs(docs ...string) RouteFunc {
 }
 
 func getBaseType(t reflect.Type) (typ, format string, multi bool) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	switch t.Kind() {
 	case reflect.String:
 		typ = "string"

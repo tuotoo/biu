@@ -1,15 +1,18 @@
 package biu
 
 import (
+	"embed"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/emicklei/go-restful"
-	"github.com/emicklei/go-restful-openapi"
+	"github.com/emicklei/go-restful-openapi/v2"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/go-openapi/spec"
-	"github.com/tuotoo/biu/swagger-go"
 )
+
+//go:embed swagger/*
+var swagger embed.FS
 
 // NewSwaggerService creates a swagger webservice in /swagger
 func (c *Container) NewSwaggerService(info SwaggerInfo) *restful.WebService {
@@ -28,7 +31,9 @@ func newSwaggerService(
 	if info.RouteSuffix == "" {
 		info.RouteSuffix = "swagger"
 	}
-	info.RoutePrefix = "/" + strings.Trim(info.RoutePrefix, "/")
+	if info.RoutePrefix != "" {
+		info.RoutePrefix = "/" + strings.Trim(info.RoutePrefix, "/")
+	}
 	info.RouteSuffix = "/" + strings.Trim(info.RouteSuffix, "/")
 	config := restfulspec.Config{
 		WebServices:                   container.RegisteredWebServices(),
@@ -46,7 +51,7 @@ func newSwaggerService(
 				r2.URL = new(url.URL)
 				*r2.URL = *r.URL
 				r2.URL.Path = "swagger" + p
-				http.FileServer(swagger.FS(false)).ServeHTTP(w, r2)
+				http.FileServer(http.FS(swagger)).ServeHTTP(w, r2)
 			} else {
 				http.NotFound(w, r)
 			}
@@ -58,13 +63,17 @@ func newSwaggerService(
 func enrichSwaggerObject(container *Container, info SwaggerInfo, serveMux *http.ServeMux) func(swo *spec.Swagger) {
 	return func(swo *spec.Swagger) {
 		contact := &spec.ContactInfo{
-			Name:  info.ContactName,
-			Email: info.ContactEmail,
-			URL:   info.ContactURL,
+			ContactInfoProps: spec.ContactInfoProps{
+				Name:  info.ContactName,
+				Email: info.ContactEmail,
+				URL:   info.ContactURL,
+			},
 		}
 		license := &spec.License{
-			Name: info.LicenseName,
-			URL:  info.LicenseURL,
+			LicenseProps: spec.LicenseProps{
+				Name: info.LicenseName,
+				URL:  info.LicenseURL,
+			},
 		}
 		infoProps := spec.InfoProps{
 			Title:          info.Title,
@@ -81,7 +90,7 @@ func enrichSwaggerObject(container *Container, info SwaggerInfo, serveMux *http.
 		swo.SecurityDefinitions = map[string]*spec.SecurityScheme{
 			"jwt": spec.APIKeyAuth("Authorization", "header"),
 		}
-		for _, ws := range restful.RegisteredWebServices() {
+		for _, ws := range container.RegisteredWebServices() {
 			for _, route := range ws.Routes() {
 				processAuth(swo, route)
 			}

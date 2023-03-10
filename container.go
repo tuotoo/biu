@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/go-openapi/spec"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
@@ -17,6 +17,7 @@ var DefaultContainer = New(restful.DefaultContainer)
 // Container of restful
 type Container struct {
 	*restful.Container
+	*http.Server
 	swaggerTags map[*http.ServeMux][]spec.Tag
 	errors      map[int]string
 	routeID     map[string]string

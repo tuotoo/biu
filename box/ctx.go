@@ -6,8 +6,8 @@ import (
 	"strings"
 	_ "unsafe"
 
-	"github.com/dgrijalva/jwt-go/request"
-	"github.com/emicklei/go-restful"
+	"github.com/dgrijalva/jwt-go/v4/request"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/mpvl/errc"
 	"github.com/tuotoo/biu/auth"
@@ -219,16 +219,27 @@ func (ctx *Ctx) Header(name string) param.Parameter {
 	return param.NewParameter([]string{ctx.HeaderParameter(name)}, nil)
 }
 
+func filterFlags(content string) string {
+	for i, char := range content {
+		if char == ' ' || char == ';' {
+			return content[:i]
+		}
+	}
+	return content
+}
+
 // Bind checks the Content-Type to select a binding engine automatically,
 // Depending the "Content-Type" header different bindings are used:
-//     "application/json" --> JSON binding
-//     "application/xml"  --> XML binding
+//
+//	"application/json" --> JSON binding
+//	"application/xml"  --> XML binding
+//
 // otherwise --> returns an error.
 // It parses the request's body as JSON if Content-Type == "application/json" using JSON or XML as a JSON input.
 // It decodes the json payload into the struct specified as a pointer.
 // It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
 func (ctx *Ctx) Bind(obj interface{}) error {
-	b := binding.Default(ctx.Req().Method, ctx.Request.HeaderParameter("Content-Type"))
+	b := binding.Default(ctx.Req().Method, filterFlags(ctx.Request.HeaderParameter("Content-Type")))
 	return ctx.BindWith(obj, b)
 }
 
