@@ -24,56 +24,40 @@ type Container struct {
 	logger      log.ILogger
 }
 
-// New creates a new restful container.
-func New(container ...*restful.Container) *Container {
-	var rc *restful.Container
-	if len(container) > 0 {
-		rc = container[0]
-	} else {
-		rc = restful.NewContainer()
+func DefaultResponseTransformer(ctx box.Ctx) {
+	ctx.Next()
+
+	code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
+	if ok && code != 0 {
+		return
 	}
 
-	errors := make(map[int]string)
-	routeMap := make(map[string]string)
-	c := &Container{
-		Container:   rc,
-		swaggerTags: make(map[*http.ServeMux][]spec.Tag),
-		routeID:     routeMap,
-		errors:      errors,
-		logger:      log.DefaultLogger{},
+	entities, ok := ctx.Attribute(box.BiuAttrEntities).([]interface{})
+	if !ok {
+		return
 	}
-	c.Filter(c.FilterFunc(func(ctx box.Ctx) {
-		ctx.Next()
+	if len(entities) < 1 {
+		return
+	}
 
-		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
-		if ok && code != 0 {
-			return
-		}
-
-		entities, ok := ctx.Attribute(box.BiuAttrEntities).([]interface{})
-		if !ok {
-			return
-		}
-		if len(entities) < 1 {
-			return
-		}
-
-		err := ctx.WriteAsJson(box.CommonResp{
-			Data:    entities[0],
-			RouteID: ctx.RouteID(),
+	err := ctx.WriteAsJson(box.CommonResp{
+		Data:    entities[0],
+		RouteID: ctx.RouteID(),
+	})
+	if err != nil {
+		ctx.Logger.Info(log.BiuInternalInfo{
+			Err: err,
+			Extras: map[string]interface{}{
+				"Data":    entities[0],
+				"RouteID": ctx.RouteID(),
+			},
 		})
-		if err != nil {
-			ctx.Logger.Info(log.BiuInternalInfo{
-				Err: err,
-				Extras: map[string]interface{}{
-					"Data":    entities[0],
-					"RouteID": ctx.RouteID(),
-				},
-			})
-		}
-	}))
-	c.Filter(c.FilterFunc(func(ctx box.Ctx) {
-		routeID := routeMap[ctx.RouteSignature()]
+	}
+}
+
+func DefaultErrorTransformer(c *Container) func(ctx box.Ctx) {
+	return func(ctx box.Ctx) {
+		routeID := c.RouteIDMap()[ctx.RouteSignature()]
 		ctx.SetAttribute(box.BiuAttrRouteID, routeID)
 		ctx.Next()
 		code, ok := ctx.Attribute(box.BiuAttrErrCode).(int)
@@ -82,7 +66,7 @@ func New(container ...*restful.Container) *Container {
 		}
 		msg, ok := ctx.Attribute(box.BiuAttrErrMsg).(string)
 		if !ok {
-			msg = errors[code]
+			msg = c.ErrorMap()[code]
 		}
 		args, ok := ctx.Attribute(box.BiuAttrErrArgs).([]interface{})
 		if ok && len(args) > 0 {
@@ -101,7 +85,34 @@ func New(container ...*restful.Container) *Container {
 		}
 		ctx.Logger.Info(logInfo)
 		ctx.ResponseError(code, msg)
-	}))
+	}
+}
+
+// New creates a new restful container.
+func New(container ...*restful.Container) *Container {
+	c := NewContainer(container...)
+	c.Filter(c.FilterFunc(DefaultResponseTransformer))
+	c.Filter(c.FilterFunc(DefaultErrorTransformer(c)))
+	return c
+}
+
+func NewContainer(container ...*restful.Container) *Container {
+	var rc *restful.Container
+	if len(container) > 0 {
+		rc = container[0]
+	} else {
+		rc = restful.NewContainer()
+	}
+
+	errors := make(map[int]string)
+	routeMap := make(map[string]string)
+	c := &Container{
+		Container:   rc,
+		swaggerTags: make(map[*http.ServeMux][]spec.Tag),
+		routeID:     routeMap,
+		errors:      errors,
+		logger:      log.DefaultLogger{},
+	}
 	return c
 }
 
@@ -144,4 +155,12 @@ func (c *Container) Handle(f func(ctx box.Ctx)) restful.RouteFunction {
 // Filter transform a biu handler to a restful.FilterFunction
 func (c *Container) FilterFunc(f func(ctx box.Ctx)) restful.FilterFunction {
 	return FilterWithLogger(f, c.logger)
+}
+
+func (c *Container) RouteIDMap() map[string]string {
+	return c.routeID
+}
+
+func (c *Container) ErrorMap() map[int]string {
+	return c.errors
 }
