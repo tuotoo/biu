@@ -84,7 +84,21 @@ func DefaultErrorTransformer(c *Container) func(ctx box.Ctx) {
 			logInfo.Err = err
 		}
 		ctx.Logger.Info(logInfo)
-		ctx.ResponseError(code, msg)
+		err := ctx.WriteAsJson(box.CommonResp{
+			Code:    code,
+			Message: msg,
+			RouteID: ctx.RouteID(),
+		})
+		if err != nil {
+			ctx.Logger.Info(log.BiuInternalInfo{
+				Err: err,
+				Extras: map[string]interface{}{
+					"Code":    code,
+					"Msg":     msg,
+					"RouteID": ctx.RouteID(),
+				},
+			})
+		}
 	}
 }
 
