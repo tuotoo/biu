@@ -62,21 +62,8 @@ func (ctx *Ctx) Transform(f func(...interface{}) []interface{}) {
 
 // ResponseError is a convenience method to response an error code and message.
 func (ctx *Ctx) ResponseError(code int, msg string) {
-	err := ctx.WriteAsJson(CommonResp{
-		Code:    code,
-		Message: msg,
-		RouteID: ctx.RouteID(),
-	})
-	if err != nil {
-		ctx.Logger.Info(log.BiuInternalInfo{
-			Err: err,
-			Extras: map[string]interface{}{
-				"Code":    code,
-				"Msg":     msg,
-				"RouteID": ctx.RouteID(),
-			},
-		})
-	}
+	ctx.SetAttribute(BiuAttrErrCode, code)
+	ctx.SetAttribute(BiuAttrErrMsg, msg)
 }
 
 // RouteID returns the RouteID of current route.
