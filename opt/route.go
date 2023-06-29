@@ -198,6 +198,7 @@ func RouteAPI(f interface{}) RouteFunc {
 	}
 	return func(route *Route) {
 		route.To = to
+		route.ID = internal.NameOfFunction(f)
 		route.Params = params
 	}
 }
