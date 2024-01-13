@@ -9,17 +9,18 @@ import (
 )
 
 type Instance struct {
-	Timeout        time.Duration
-	RefreshTimeout time.Duration
-	SecretFunc     func(string) ([]byte, error)
+	timeout        time.Duration
+	refreshTimeout time.Duration
+	secretFunc     func(string) ([]byte, error)
 }
 
-var DefaultInstance = &Instance{
-	Timeout: time.Minute * 5,
-	SecretFunc: func(userID string) (secret []byte, err error) {
-		return []byte("secret"), nil
-	},
-	RefreshTimeout: time.Hour * 24 * 7,
+// New generate auth instance
+func New(timeout, refreshTimeout time.Duration, secretFunc func(string) ([]byte, error)) *Instance {
+	i := new(Instance)
+	i.timeout = timeout
+	i.refreshTimeout = refreshTimeout
+	i.secretFunc = secretFunc
+	return i
 }
 
 // Sign returns a signed jwt string.
@@ -27,31 +28,14 @@ func (i *Instance) Sign(userID string) (token string, err error) {
 	now := time.Now()
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": userID,
-		"exp": now.Add(i.Timeout).Unix(),
+		"exp": now.Add(i.timeout).Unix(),
 		"iat": now.Unix(),
 	})
-	sec, err := i.SecretFunc(userID)
+	sec, err := i.secretFunc(userID)
 	if err != nil {
 		return "", err
 	}
 	return jwtToken.SignedString(sec)
-}
-
-func JWTTimeout(timeout time.Duration) {
-	DefaultInstance.Timeout = timeout
-}
-
-func JWTSecret(f func(string) ([]byte, error)) {
-	DefaultInstance.SecretFunc = f
-}
-
-func JWTRefreshTimeout(timeout time.Duration) {
-	DefaultInstance.RefreshTimeout = timeout
-}
-
-// Sign returns a signed jwt string with default instance.
-func Sign(userID string) (token string, err error) {
-	return DefaultInstance.Sign(userID)
 }
 
 // ParseToken parse a token string.
@@ -71,13 +55,8 @@ func (i *Instance) ParseToken(token string) (*jwt.Token, error) {
 			uidErr := xerrors.Errorf("unexpected uid: %v", claims["uid"])
 			return nil, uidErr
 		}
-		return i.SecretFunc(uid)
+		return i.secretFunc(uid)
 	})
-}
-
-// ParseToken parse a token string with default instance.
-func ParseToken(token string) (*jwt.Token, error) {
-	return DefaultInstance.ParseToken(token)
 }
 
 // RefreshToken accepts a valid token and
@@ -97,7 +76,7 @@ func (i *Instance) RefreshToken(token string) (newToken string, err error) {
 	}
 	now := time.Now()
 	iat := int64(iatF64)
-	if iat < now.Add(-i.RefreshTimeout).Unix() {
+	if iat < now.Add(-i.refreshTimeout).Unix() {
 		return "", errors.New("refresh is expired")
 	}
 	uid, ok := claims["uid"].(string)
@@ -106,24 +85,18 @@ func (i *Instance) RefreshToken(token string) (newToken string, err error) {
 	}
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"uid": uid,
-		"exp": now.Add(i.Timeout).Unix(),
+		"exp": now.Add(i.timeout).Unix(),
 		"iat": iat,
 	})
-	sec, err := i.SecretFunc(uid)
+	sec, err := i.secretFunc(uid)
 	if err != nil {
 		return "", err
 	}
 	return jwtToken.SignedString(sec)
 }
 
-// RefreshToken accepts a valid token and
-// returns a new token with new expire time.
-func RefreshToken(token string) (newToken string, err error) {
-	return DefaultInstance.RefreshToken(token)
-}
-
 // CheckToken accept a jwt token and returns the uid in token.
-func (i *Instance) CheckToken(token string) (userID string, err error) {
+func (i *Instance) Verify(token string) (userID string, err error) {
 	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", xerrors.Errorf("parse token: %w", err)
@@ -137,9 +110,4 @@ func (i *Instance) CheckToken(token string) (userID string, err error) {
 		return "", errors.New("not available uid")
 	}
 	return uid, nil
-}
-
-// CheckToken accept a jwt token and returns the uid in token with default instance.
-func CheckToken(token string) (userID string, err error) {
-	return DefaultInstance.CheckToken(token)
 }
