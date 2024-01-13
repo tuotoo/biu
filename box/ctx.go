@@ -268,15 +268,12 @@ func (ctx *Ctx) MustBindQuery(obj interface{}, code int, v ...interface{}) {
 
 // IsLogin gets JWT token in request by OAuth2Extractor,
 // and parse it with CheckToken.
-func (ctx *Ctx) IsLogin(i ...*auth.Instance) (userID string, err error) {
+func (ctx *Ctx) IsLogin(i *auth.Instance) (userID string, err error) {
 	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Req())
 	if err != nil {
 		return "", xerrors.Errorf("no auth header: %w", err)
 	}
-	if len(i) > 0 {
-		return i[0].CheckToken(tokenString)
-	}
-	return auth.DefaultInstance.CheckToken(tokenString)
+	return i.CheckToken(tokenString)
 }
 
 func (ctx *Ctx) Next() {

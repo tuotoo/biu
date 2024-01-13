@@ -2,21 +2,28 @@ package auth
 
 import (
 	"errors"
-	"time"
-
 	"github.com/dgrijalva/jwt-go/v4"
 	"golang.org/x/xerrors"
+	"time"
 )
 
 type Instance struct {
+	signMethod     jwt.SigningMethod
 	timeout        time.Duration
 	refreshTimeout time.Duration
-	secretFunc     func(string) ([]byte, error)
+	secretFunc     func(string) (interface{}, error)
 }
 
 // New generate auth instance
-func New(timeout, refreshTimeout time.Duration, secretFunc func(string) ([]byte, error)) *Instance {
+func New(timeout, refreshTimeout time.Duration, secretFunc func(string) (interface{}, error), signMethodName ...string) *Instance {
 	i := new(Instance)
+	i.signMethod = jwt.SigningMethodHS256
+	if len(signMethodName) > 0 {
+		signMethod := jwt.GetSigningMethod(signMethodName[0])
+		if signMethod != nil {
+			i.signMethod = signMethod
+		}
+	}
 	i.timeout = timeout
 	i.refreshTimeout = refreshTimeout
 	i.secretFunc = secretFunc
@@ -26,14 +33,14 @@ func New(timeout, refreshTimeout time.Duration, secretFunc func(string) ([]byte,
 // Sign returns a signed jwt string.
 func (i *Instance) Sign(userID string) (token string, err error) {
 	now := time.Now()
-	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	jwtToken := jwt.NewWithClaims(i.signMethod, jwt.MapClaims{
 		"uid": userID,
 		"exp": now.Add(i.timeout).Unix(),
 		"iat": now.Unix(),
 	})
 	sec, err := i.secretFunc(userID)
 	if err != nil {
-		return "", err
+		return "", xerrors.Errorf("%w", err)
 	}
 	return jwtToken.SignedString(sec)
 }
@@ -41,10 +48,6 @@ func (i *Instance) Sign(userID string) (token string, err error) {
 // ParseToken parse a token string.
 func (i *Instance) ParseToken(token string) (*jwt.Token, error) {
 	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
-			signingErr := xerrors.Errorf("unexpected signing method: %v", token.Header["alg"])
-			return nil, signingErr
-		}
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			claimParseErr := xerrors.Errorf("unexpected claims: %v", claims)
@@ -83,7 +86,7 @@ func (i *Instance) RefreshToken(token string) (newToken string, err error) {
 	if !ok {
 		return "", errors.New("not available uid")
 	}
-	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	jwtToken := jwt.NewWithClaims(i.signMethod, jwt.MapClaims{
 		"uid": uid,
 		"exp": now.Add(i.timeout).Unix(),
 		"iat": iat,
@@ -96,7 +99,7 @@ func (i *Instance) RefreshToken(token string) (newToken string, err error) {
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
-func (i *Instance) Verify(token string) (userID string, err error) {
+func (i *Instance) CheckToken(token string) (userID string, err error) {
 	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", xerrors.Errorf("parse token: %w", err)
