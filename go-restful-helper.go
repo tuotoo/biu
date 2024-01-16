@@ -122,8 +122,8 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 		exp, err := internal.NewPathExpression(p2)
 		if err != nil {
 			ws.Container.logger.Fatal(log.BiuInternalInfo{
-				Err:    xerrors.Errorf("invalid path: %s", err),
-				Extras: map[string]interface{}{"path": p2},
+				Err:    xerrors.Errorf("invalid routePath: %s", err),
+				Extras: map[string]interface{}{"routePath": p2},
 			})
 		}
 		for i, v := range exp.VarNames {
@@ -374,14 +374,16 @@ func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
 }
 
 // LogFilter logs
-// 	{
-// 		remote_addr,
-// 		method,
-// 		uri,
-// 		proto,
-// 		status_code,
-// 		content_length,
-// 	}
+//
+//	{
+//		remote_addr,
+//		method,
+//		uri,
+//		proto,
+//		status_code,
+//		content_length,
+//	}
+//
 // for each request
 func LogFilter() restful.FilterFunction {
 	return DefaultContainer.FilterFunc(func(ctx box.Ctx) {

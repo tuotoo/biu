@@ -412,16 +412,20 @@ func appendParam(t reflect.Type, field FieldType, params []ParamOpt) []ParamOpt 
 		if tagName, ok := tags[APITagName]; ok {
 			name = tagName
 		}
-		typ, format, multi := getBaseType(t.Field(i).Type)
+		typ, err := getBaseType(t.Field(i).Type)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
 		if tagFormat, ok := tags[APITagFormat]; ok {
-			format = tagFormat
+			typ.format = tagFormat
 		}
 		params = append(params, ParamOpt{
 			FieldType: field,
 			Name:      name,
-			Type:      typ,
-			Format:    format,
-			IsMulti:   multi,
+			Type:      typ.typ,
+			Format:    typ.format,
+			IsMulti:   typ.multi,
 			FieldName: fieldName,
 			Desc:      tags[APITagDesc],
 		})
@@ -457,10 +461,17 @@ func ExtraPathDocs(docs ...string) RouteFunc {
 	}
 }
 
-func getBaseType(t reflect.Type) (typ, format string, multi bool) {
+type baseType struct {
+	typ    string
+	format string
+	multi  bool
+}
+
+func getBaseType(t reflect.Type) (*baseType, error) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
+	var typ, format string
 	switch t.Kind() {
 	case reflect.String:
 		typ = "string"
@@ -484,23 +495,39 @@ func getBaseType(t reflect.Type) (typ, format string, multi bool) {
 		format = "double"
 	case reflect.Slice, reflect.Array:
 		if t.Elem().Kind() != reflect.Uint8 {
-			typ, format, _ = getBaseType(t.Elem())
-			return typ, format, true
+			baseType, err := getBaseType(t.Elem())
+			if err != nil {
+				return nil, err
+			}
+			baseType.multi = true
+			return baseType, nil
 		}
-		return "string", "byte", true
+		return &baseType{
+			typ:    "string",
+			format: "byte",
+			multi:  true,
+		}, nil
 	case reflect.Struct:
 		switch typeSignature(t) {
 		case "time.Time":
-			return "string", "date-time", false
+			return &baseType{
+				typ:    "string",
+				format: "date-time",
+			}, nil
 		case box.FileSignature:
-			return "file", "", false
+			return &baseType{
+				typ: "file",
+			}, nil
 		default:
-			log.Fatal(fmt.Errorf("type %s currently not support", t.String()))
+			return nil, fmt.Errorf("type %s currently not support", typeSignature(t))
 		}
 	default:
-		log.Fatal(fmt.Errorf("type %s currently not support", t.String()))
+		return nil, fmt.Errorf("type %s currently not support", t.String())
 	}
-	return typ, format, false
+	return &baseType{
+		typ:    typ,
+		format: format,
+	}, nil
 }
 
 func typeSignature(t reflect.Type) string {
