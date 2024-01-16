@@ -10,10 +10,11 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/mpvl/errc"
+	"golang.org/x/xerrors"
+
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/param"
-	"golang.org/x/xerrors"
 )
 
 const (

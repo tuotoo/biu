@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/signal"
+	"path"
 	"reflect"
 	"strings"
 	"syscall"
@@ -17,11 +18,12 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/gavv/httpexpect/v2"
 	"github.com/go-openapi/spec"
+	"golang.org/x/xerrors"
+
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/internal"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
-	"golang.org/x/xerrors"
 )
 
 const (
@@ -56,14 +58,14 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 
 	p1 := elm.FieldByName("rootPath").String()
 	p2 := elm.FieldByName("currentPath").String()
-	path := strings.TrimRight(p1, "/") + "/"
+	routePath := path.Join(p1, "/")
 	if ws.namespace != "" {
-		path += ws.namespace + "/"
+		routePath = path.Join(routePath, ws.namespace)
 		builder.Path(ws.namespace + p2)
 	}
-	path += strings.TrimLeft(p2, "/")
+	routePath = path.Join(routePath, p2)
 	method := elm.FieldByName("httpMethod").String()
-	mapKey := path + " " + method
+	mapKey := routePath + " " + method
 
 	for _, v := range cfg.Params {
 		switch v.FieldType {

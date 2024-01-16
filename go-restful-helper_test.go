@@ -8,6 +8,7 @@ import (
 
 	"github.com/gavv/httpexpect/v2"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/opt"
@@ -16,6 +17,16 @@ import (
 type test struct{}
 
 func (ctl test) WebService(ws biu.WS) {
+	ws.Route(ws.GET("/"),
+		opt.RouteID("test.addService"),
+		opt.RouteTo(func(ctx box.Ctx) {
+			ctx.Must(errors.New("1"), 1)
+		}),
+		opt.RouteErrors(map[int]string{
+			1: "err msg in /",
+		}),
+	)
+
 	ws.Route(ws.GET("/{id}").Filter(biu.Filter(func(ctx box.Ctx) {
 		ctx.Next()
 		ctx.Transform(func(i ...interface{}) []interface{} {
@@ -31,7 +42,7 @@ func (ctl test) WebService(ws biu.WS) {
 }
 
 func (ctl test) get(ctx box.Ctx) {
-	i := ctx.Path("id").IntDefault(1)
+	i := ctx.Path("id").IntDefault(0)
 	switch i {
 	case 1:
 		ctx.Must(errors.New("1"), 1)
@@ -66,6 +77,10 @@ func TestContainer_AddServices(t *testing.T) {
 		ValueEqual("code", 2).ValueEqual("message", "err msg global")
 	httpexpect.New(t, s.URL).GET("/add-service/3").Expect().JSON().Object().
 		ValueEqual("code", 0).ValueEqual("data", "COOL TRANSFORM COMPLETED")
+	httpexpect.New(t, s.URL).GET("/add-service/").Expect().JSON().Object().
+		ValueEqual("code", 0).ValueEqual("data", "COOL TRANSFORM COMPLETED")
+	httpexpect.New(t, s.URL).GET("/add-service").Expect().JSON().Object().
+		ValueEqual("code", 1).ValueEqual("message", "err msg in /")
 }
 
 type addSrvCtrl struct {
@@ -106,6 +121,18 @@ func TestAddServices(t *testing.T) {
 			namespace:   "/",
 			subPath:     "/p",
 			expectRoute: "/v/p",
+		},
+		{
+			prefix:      "/v",
+			namespace:   "p",
+			subPath:     "/",
+			expectRoute: "/v/p",
+		},
+		{
+			prefix:      "v",
+			namespace:   "p",
+			subPath:     "s",
+			expectRoute: "/v/p/s",
 		},
 	}
 	for _, v := range table {

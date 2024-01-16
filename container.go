@@ -7,6 +7,7 @@ import (
 
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-openapi/spec"
+
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
