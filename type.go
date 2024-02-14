@@ -39,7 +39,7 @@ type SwaggerInfo struct {
 	Version        string
 	WebServicesURL string
 	DisableCORS    bool
-	// swagger service will running under
+	// swagger service will be running under
 	// http://<api>/<RoutePrefix>/<RouteSuffix>
 	// by default the RouteSuffix is swagger
 	RoutePrefix string

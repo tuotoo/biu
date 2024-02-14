@@ -1,6 +1,6 @@
 module github.com/tuotoo/biu
 
-go 1.16
+go 1.18
 
 require (
 	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1

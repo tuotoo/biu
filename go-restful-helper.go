@@ -202,8 +202,8 @@ func addService(
 			Container:  container,
 			errors:     make(map[string]map[int]string),
 		}
-		path := "/" + strings.Trim("/"+strings.Trim(prefix, "/")+"/"+strings.Trim(v.NameSpace, "/"), "/")
-		ws.Path(path).Produces(restful.MIME_JSON)
+		wsPath := path.Join("/", prefix, v.NameSpace)
+		ws.Path(wsPath).Produces(restful.MIME_JSON)
 		if inCommonNS {
 			ws = commonWS
 			ws.namespace = v.NameSpace
@@ -247,7 +247,7 @@ func addService(
 					r.Consumes = []string{restful.MIME_JSON}
 				}
 			}
-			if strings.HasPrefix(strings.TrimRight(r.Path, "/")+"/", strings.TrimRight(path, "/")+"/") {
+			if strings.HasPrefix(path.Join(r.Path, "/"), path.Join(wsPath, "/")) {
 				container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
 					"PATH":   r.Path,
 					"METHOD": r.Method,
