@@ -71,16 +71,16 @@ func TestContainer_AddServices(t *testing.T) {
 	s := httptest.NewServer(c)
 	defer s.Close()
 
-	httpexpect.New(t, s.URL).GET("/add-service/1").Expect().JSON().Object().
-		ValueEqual("code", 1).ValueEqual("message", "err msg in route")
-	httpexpect.New(t, s.URL).GET("/add-service/2").Expect().JSON().Object().
-		ValueEqual("code", 2).ValueEqual("message", "err msg global")
-	httpexpect.New(t, s.URL).GET("/add-service/3").Expect().JSON().Object().
-		ValueEqual("code", 0).ValueEqual("data", "COOL TRANSFORM COMPLETED")
-	httpexpect.New(t, s.URL).GET("/add-service/").Expect().JSON().Object().
-		ValueEqual("code", 0).ValueEqual("data", "COOL TRANSFORM COMPLETED")
-	httpexpect.New(t, s.URL).GET("/add-service").Expect().JSON().Object().
-		ValueEqual("code", 1).ValueEqual("message", "err msg in /")
+	httpexpect.Default(t, s.URL).GET("/add-service/1").Expect().JSON().Object().
+		HasValue("code", 1).HasValue("message", "err msg in route")
+	httpexpect.Default(t, s.URL).GET("/add-service/2").Expect().JSON().Object().
+		HasValue("code", 2).HasValue("message", "err msg global")
+	httpexpect.Default(t, s.URL).GET("/add-service/3").Expect().JSON().Object().
+		HasValue("code", 0).HasValue("data", "COOL TRANSFORM COMPLETED")
+	httpexpect.Default(t, s.URL).GET("/add-service/").Expect().JSON().Object().
+		HasValue("code", 0).HasValue("data", "COOL TRANSFORM COMPLETED")
+	httpexpect.Default(t, s.URL).GET("/add-service").Expect().JSON().Object().
+		HasValue("code", 1).HasValue("message", "err msg in /")
 }
 
 type addSrvCtrl struct {

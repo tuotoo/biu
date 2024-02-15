@@ -6,9 +6,9 @@ import (
 	"strings"
 	_ "unsafe"
 
-	"github.com/dgrijalva/jwt-go/v4/request"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/golang-jwt/jwt/v5/request"
 	"github.com/mpvl/errc"
 	"golang.org/x/xerrors"
 

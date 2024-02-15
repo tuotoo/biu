@@ -53,20 +53,20 @@ func TestCtx_Must(t *testing.T) {
 	})
 	s := httptest.NewServer(c)
 	defer s.Close()
-	httpexpect.New(t, s.URL).GET("/must/1").Expect().JSON().Object().
-		ValueEqual("code", 1).ValueEqual("message", "normal err")
-	httpexpect.New(t, s.URL).GET("/must/2").Expect().JSON().Object().
-		ValueEqual("code", 2).ValueEqual("message", "with arg OK")
+	httpexpect.Default(t, s.URL).GET("/must/1").Expect().JSON().Object().
+		HasValue("code", 1).HasValue("message", "normal err")
+	httpexpect.Default(t, s.URL).GET("/must/2").Expect().JSON().Object().
+		HasValue("code", 2).HasValue("message", "with arg OK")
 	if ctl.tmpValue != 0 {
 		t.Errorf("expect func ok %d but got %d", 0, ctl.tmpValue)
 	}
-	httpexpect.New(t, s.URL).GET("/must/3").Expect().JSON().Object().
-		ValueEqual("code", 3).ValueEqual("message", "with func")
+	httpexpect.Default(t, s.URL).GET("/must/3").Expect().JSON().Object().
+		HasValue("code", 3).HasValue("message", "with func")
 	if ctl.tmpValue != 1 {
 		t.Errorf("expect func ok %d but got %d", 1, ctl.tmpValue)
 	}
-	httpexpect.New(t, s.URL).GET("/must/4").Expect().JSON().Object().
-		ValueEqual("code", 4).ValueEqual("message", "with func and arg OK")
+	httpexpect.Default(t, s.URL).GET("/must/4").Expect().JSON().Object().
+		HasValue("code", 4).HasValue("message", "with func and arg OK")
 	if ctl.tmpValue != 2 {
 		t.Errorf("expect func ok %d but got %d", 2, ctl.tmpValue)
 	}
