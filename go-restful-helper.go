@@ -2,6 +2,8 @@ package biu
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +20,6 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/gavv/httpexpect/v2"
 	"github.com/go-openapi/spec"
-	"golang.org/x/xerrors"
 
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/internal"
@@ -122,7 +123,7 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 		exp, err := internal.NewPathExpression(p2)
 		if err != nil {
 			ws.Container.logger.Fatal(log.BiuInternalInfo{
-				Err:    xerrors.Errorf("invalid routePath: %s", err),
+				Err:    fmt.Errorf("invalid routePath: %w", err),
 				Extras: map[string]interface{}{"routePath": p2},
 			})
 		}
@@ -325,7 +326,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 
 	go func() {
 		c.logger.Info(log.BiuInternalInfo{
-			Err: xerrors.Errorf("listen and serve: %w", ListenAndServe(c.Server, addrChan)),
+			Err: fmt.Errorf("listen and serve: %w", ListenAndServe(c.Server, addrChan)),
 		})
 		if cfg.Cancel != nil {
 			cfg.Cancel()
@@ -341,7 +342,7 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 		cfg.AfterStart()
 	case <-time.After(time.Second):
 		c.logger.Fatal(log.BiuInternalInfo{
-			Err: xerrors.New("start server timeout"),
+			Err: errors.New("start server timeout"),
 		})
 	}
 

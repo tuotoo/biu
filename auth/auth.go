@@ -2,10 +2,10 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/xerrors"
 )
 
 type Instance struct {
@@ -58,17 +58,17 @@ func Sign(userID string) (token string, err error) {
 func (i *Instance) ParseToken(token string) (*jwt.Token, error) {
 	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, methodOK := token.Method.(*jwt.SigningMethodHMAC); !methodOK {
-			signingErr := xerrors.Errorf("unexpected signing method: %v", token.Header["alg"])
+			signingErr := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			return nil, signingErr
 		}
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			claimParseErr := xerrors.Errorf("unexpected claims: %v", claims)
+			claimParseErr := fmt.Errorf("unexpected claims: %v", claims)
 			return nil, claimParseErr
 		}
 		uid, ok := claims["uid"].(string)
 		if !ok {
-			uidErr := xerrors.Errorf("unexpected uid: %v", claims["uid"])
+			uidErr := fmt.Errorf("unexpected uid: %v", claims["uid"])
 			return nil, uidErr
 		}
 		return i.SecretFunc(uid)
@@ -85,7 +85,7 @@ func ParseToken(token string) (*jwt.Token, error) {
 func (i *Instance) RefreshToken(token string) (newToken string, err error) {
 	t, err := i.ParseToken(token)
 	if err != nil {
-		return "", xerrors.Errorf("parse token: %w", err)
+		return "", fmt.Errorf("parse token: %w", err)
 	}
 	claims, ok := t.Claims.(jwt.MapClaims)
 	if !ok || !t.Valid {
@@ -126,7 +126,7 @@ func RefreshToken(token string) (newToken string, err error) {
 func (i *Instance) CheckToken(token string) (userID string, err error) {
 	t, err := i.ParseToken(token)
 	if err != nil {
-		return "", xerrors.Errorf("parse token: %w", err)
+		return "", fmt.Errorf("parse token: %w", err)
 	}
 	claims, ok := t.Claims.(jwt.MapClaims)
 	if !ok || !t.Valid {

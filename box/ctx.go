@@ -1,6 +1,7 @@
 package box
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/golang-jwt/jwt/v5/request"
 	"github.com/mpvl/errc"
-	"golang.org/x/xerrors"
 
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/log"
@@ -272,7 +272,7 @@ func (ctx *Ctx) MustBindQuery(obj interface{}, code int, v ...interface{}) {
 func (ctx *Ctx) IsLogin(i ...*auth.Instance) (userID string, err error) {
 	tokenString, err := request.OAuth2Extractor.ExtractToken(ctx.Req())
 	if err != nil {
-		return "", xerrors.Errorf("no auth header: %w", err)
+		return "", fmt.Errorf("no auth header: %w", err)
 	}
 	if len(i) > 0 {
 		return i[0].CheckToken(tokenString)
