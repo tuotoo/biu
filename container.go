@@ -15,6 +15,14 @@ import (
 
 var DefaultContainer = New(restful.DefaultContainer)
 
+func init() {
+	// TrimRightSlashEnabled controls whether
+	// - path on route building is using path.Join
+	// - the path of the incoming request is trimmed of its slash suffix.
+	// Value of false matches the behavior of go-restful > 3.9.0
+	restful.TrimRightSlashEnabled = false
+}
+
 // Container of restful
 type Container struct {
 	*restful.Container
