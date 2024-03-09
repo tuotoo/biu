@@ -6,17 +6,22 @@ import (
 	"time"
 
 	"github.com/emicklei/go-restful/v3"
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
 )
 
 func ExampleSign() {
-	auth.JWTTimeout(4 * time.Second)
-	auth.JWTSecret(func(userID string) (secret []byte, err error) {
-		return []byte("hello world"), nil
-	})
-	auth.JWTRefreshTimeout(5 * time.Second)
-	token, _ := auth.Sign("user")
+	instance := auth.InstanceBuilder(
+		auth.NewHMAC(
+			jwt.SigningMethodHS256,
+			func(userID string) ([]byte, error) {
+				return []byte("hello world"), nil
+			}),
+	).SetTimeout(time.Second * 4).
+		SetRefreshTimeout(time.Second * 5).Build()
+	token, _ := instance.Sign("user")
 	ctx := &box.Ctx{
 		Request: &restful.Request{
 			Request: &http.Request{
@@ -26,39 +31,39 @@ func ExampleSign() {
 			},
 		},
 	}
-	u1, err := ctx.IsLogin()
+	u1, err := ctx.IsLogin(instance)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(u1)
-	u2, err := auth.CheckToken(token)
+	u2, err := instance.CheckToken(token)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(u2)
 	time.Sleep(time.Second * 2)
-	newToken, err := auth.RefreshToken(token)
+	newToken, err := instance.RefreshToken(token)
 	if err != nil {
 		panic(err)
 	}
-	_, err = auth.CheckToken(newToken)
+	_, err = instance.CheckToken(newToken)
 	if err != nil {
 		panic(err)
 	}
 
 	time.Sleep(time.Second * 3)
 	// token is expired, newToken is still valid
-	_, err = ctx.IsLogin()
+	_, err = ctx.IsLogin(instance)
 	fmt.Println(err != nil)
-	_, err = auth.CheckToken(token)
+	_, err = instance.CheckToken(token)
 	fmt.Println(err != nil)
-	_, err = auth.CheckToken(newToken)
+	_, err = instance.CheckToken(newToken)
 	if err != nil {
 		panic(err)
 	}
 	time.Sleep(time.Second)
 	// cant refresh token if refresh timeout is reached
-	_, err = auth.RefreshToken(newToken)
+	_, err = instance.RefreshToken(newToken)
 	fmt.Println(err != nil)
 
 	ctx2 := &box.Ctx{
@@ -70,7 +75,7 @@ func ExampleSign() {
 			},
 		},
 	}
-	_, err = ctx2.IsLogin()
+	_, err = ctx2.IsLogin(instance)
 	fmt.Println(err != nil)
 	// Output:
 	// user

@@ -63,9 +63,9 @@ func WrapHandler(f func(ctx box.Ctx)) http.HandlerFunc {
 
 // AuthFilter checks if request contains JWT,
 // and sets UserID in Attribute if exists,
-func AuthFilter(code int, i ...*auth.Instance) restful.FilterFunction {
+func AuthFilter(code int, i auth.TokenChecker) restful.FilterFunction {
 	return FilterWithLogger(func(ctx box.Ctx) {
-		userID, err := ctx.IsLogin(i...)
+		userID, err := ctx.IsLogin(i)
 		ctx.Must(err, code)
 		ctx.SetAttribute(box.BiuAttrAuthUserID, userID)
 		ctx.Next()

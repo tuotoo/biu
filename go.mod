@@ -1,6 +1,6 @@
 module github.com/tuotoo/biu
 
-go 1.18
+go 1.19
 
 require (
 	github.com/emicklei/go-restful-openapi/v2 v2.9.1
