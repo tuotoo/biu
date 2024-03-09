@@ -12,7 +12,7 @@ import (
 	"github.com/tuotoo/biu/box"
 )
 
-func ExampleSign() {
+func ExampleInstance() {
 	instance := auth.InstanceBuilder(
 		auth.NewHMAC(
 			jwt.SigningMethodHS256,
