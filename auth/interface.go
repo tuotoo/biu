@@ -26,7 +26,12 @@ type SigningMethod interface {
 	jwt.SigningMethod
 }
 
-type TokenChecker interface {
-	// CheckToken checks the validation of the token and returns uid and any potential error.
-	CheckToken(token string) (uid string, err error)
+type TokenManager interface {
+	// SignWithClaims signs the token with the given claims.
+	SignWithClaims(uid string, claims map[string]any) (token string, err error)
+	// ParseToken parses the token string and returns a jwt.Token and an error.
+	ParseToken(token string) (*jwt.Token, error)
+	// RefreshToken accepts a valid token and
+	// returns a new token with new expire time.
+	RefreshToken(token string) (newToken string, err error)
 }

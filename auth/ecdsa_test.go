@@ -23,11 +23,11 @@ func ExampleECDSA() {
 			return &privateKey.PublicKey, nil
 		}),
 	).Build()
-	token, err := instance.Sign("user")
+	token, err := Sign(instance, "user")
 	if err != nil {
 		panic(err)
 	}
-	uid, err := instance.CheckToken(token)
+	uid, err := CheckToken(instance, token)
 	if err != nil {
 		panic(err)
 	}

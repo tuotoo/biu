@@ -28,9 +28,7 @@ type Builder[
 	instance *Instance[S, V, M, T]
 }
 
-// InstanceBuilder is a Go function that returns a Builder instance.
-//
-// It takes an alg parameter of type T and returns a pointer to Builder[S, V, M, T].
+// InstanceBuilder returns a Builder instance.
 func InstanceBuilder[
 	S SigningKey,
 	V VerifyKey,
@@ -46,19 +44,13 @@ func InstanceBuilder[
 	}
 }
 
-// SetTimeout sets the timeout for the Builder function.
-//
-// timeout time.Duration
-// *Builder[S, V, M, T]
+// SetTimeout sets the timeout for the Instance.
 func (b *Builder[S, V, M, T]) SetTimeout(timeout time.Duration) *Builder[S, V, M, T] {
 	b.instance.timeout = timeout
 	return b
 }
 
-// SetRefreshTimeout sets the refresh timeout for the Builder.
-//
-// timeout time.Duration
-// *Builder[S, V, M, T]
+// SetRefreshTimeout sets the refresh timeout for the Instance.
 func (b *Builder[S, V, M, T]) SetRefreshTimeout(timeout time.Duration) *Builder[S, V, M, T] {
 	b.instance.refreshTimeout = timeout
 	return b
@@ -69,8 +61,6 @@ func (b *Builder[S, V, M, T]) Build() *Instance[S, V, M, T] {
 }
 
 // SignWithClaims signs the token with the given claims.
-//
-// uid string, claims map[string]any. (token string, err error).
 func (i *Instance[S, V, M, T]) SignWithClaims(uid string, claims map[string]any) (token string, err error) {
 	now := time.Now()
 	_claims := jwt.MapClaims{
@@ -88,11 +78,6 @@ func (i *Instance[S, V, M, T]) SignWithClaims(uid string, claims map[string]any)
 		return "", err
 	}
 	return jwtToken.SignedString(sec)
-}
-
-// Sign returns a signed jwt string.
-func (i *Instance[S, V, M, T]) Sign(uid string) (token string, err error) {
-	return i.SignWithClaims(uid, nil)
 }
 
 // ParseToken parse a token string.
@@ -150,7 +135,7 @@ func (i *Instance[S, V, M, T]) RefreshToken(token string) (newToken string, err 
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
-func (i *Instance[S, V, M, T]) CheckToken(token string) (uid string, err error) {
+func CheckToken(i TokenManager, token string) (userID string, err error) {
 	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", fmt.Errorf("parse token: %w", err)
@@ -164,4 +149,9 @@ func (i *Instance[S, V, M, T]) CheckToken(token string) (uid string, err error) 
 		return "", errors.New("not available uid")
 	}
 	return _uid, nil
+}
+
+// Sign returns a signed jwt string.
+func Sign(i TokenManager, uid string) (token string, err error) {
+	return i.SignWithClaims(uid, nil)
 }
