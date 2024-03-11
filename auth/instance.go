@@ -14,7 +14,7 @@ type Builder[
 	M SigningMethod,
 	T Alg[S, V, M],
 ] struct {
-	manager *Manager[S, V, M, T]
+	manager *TokenManager[S, V, M, T]
 }
 
 // InstanceBuilder returns a Builder instance.
@@ -25,7 +25,7 @@ func InstanceBuilder[
 	T Alg[S, V, M],
 ](alg T) *Builder[S, V, M, T] {
 	return &Builder[S, V, M, T]{
-		manager: &Manager[S, V, M, T]{
+		manager: &TokenManager[S, V, M, T]{
 			alg:            alg,
 			timeout:        time.Minute * 5,
 			refreshTimeout: time.Hour * 24 * 7,
@@ -47,22 +47,22 @@ func (b *Builder[S, V, M, T]) SetRefreshTimeout(timeout time.Duration) *Builder[
 
 func (b *Builder[S, V, M, T]) Build() *Instance {
 	return &Instance{
-		TokenManager: b.manager,
+		ITokenManager: b.manager,
 	}
 }
 
 type Instance struct {
-	TokenManager
+	ITokenManager
 }
 
 // Sign returns a signed jwt string.
 func (e *Instance) Sign(uid string) (token string, err error) {
-	return e.TokenManager.SignWithClaims(uid, nil)
+	return e.SignWithClaims(uid, nil)
 }
 
 // CheckToken accept a jwt token and returns the uid in token.
 func (e *Instance) CheckToken(token string) (userID string, err error) {
-	t, err := e.TokenManager.ParseToken(token)
+	t, err := e.ParseToken(token)
 	if err != nil {
 		return "", fmt.Errorf("parse token: %w", err)
 	}

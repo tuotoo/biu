@@ -26,7 +26,7 @@ type SigningMethod interface {
 	jwt.SigningMethod
 }
 
-type TokenManager interface {
+type ITokenManager interface {
 	// SignWithClaims signs the token with the given claims.
 	SignWithClaims(uid string, claims map[string]any) (token string, err error)
 	// ParseToken parses the token string and returns a jwt.Token and an error.

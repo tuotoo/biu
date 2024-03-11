@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type Manager[
+type TokenManager[
 	S SigningKey,
 	V VerifyKey,
 	M SigningMethod,
@@ -20,7 +20,7 @@ type Manager[
 }
 
 // SignWithClaims signs the token with the given claims.
-func (i *Manager[S, V, M, T]) SignWithClaims(uid string, claims map[string]any) (token string, err error) {
+func (i *TokenManager[S, V, M, T]) SignWithClaims(uid string, claims map[string]any) (token string, err error) {
 	now := time.Now()
 	_claims := jwt.MapClaims{
 		"uid": uid,
@@ -40,7 +40,7 @@ func (i *Manager[S, V, M, T]) SignWithClaims(uid string, claims map[string]any) 
 }
 
 // ParseToken parse a token string.
-func (i *Manager[S, V, M, T]) ParseToken(token string) (*jwt.Token, error) {
+func (i *TokenManager[S, V, M, T]) ParseToken(token string) (*jwt.Token, error) {
 	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, methodOK := token.Method.(M); !methodOK {
 			signingErr := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -62,7 +62,7 @@ func (i *Manager[S, V, M, T]) ParseToken(token string) (*jwt.Token, error) {
 
 // RefreshToken accepts a valid token and
 // returns a new token with new expire time.
-func (i *Manager[S, V, M, T]) RefreshToken(token string) (newToken string, err error) {
+func (i *TokenManager[S, V, M, T]) RefreshToken(token string) (newToken string, err error) {
 	t, err := i.ParseToken(token)
 	if err != nil {
 		return "", fmt.Errorf("parse token: %w", err)
