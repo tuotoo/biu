@@ -7,7 +7,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.11.3
 	github.com/gavv/httpexpect/v2 v2.16.0
 	github.com/gin-gonic/gin v1.9.1
-	github.com/go-openapi/spec v0.20.15
+	github.com/go-openapi/spec v0.21.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/mailru/easyjson v0.7.7
 	github.com/mpvl/errc v0.0.0-20171108090206-1ae3d1064ca2
@@ -25,9 +25,9 @@ require (
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
-	github.com/go-openapi/jsonpointer v0.20.3 // indirect
-	github.com/go-openapi/jsonreference v0.20.5 // indirect
-	github.com/go-openapi/swag v0.22.10 // indirect
+	github.com/go-openapi/jsonpointer v0.21.0 // indirect
+	github.com/go-openapi/jsonreference v0.21.0 // indirect
+	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.19.0 // indirect
