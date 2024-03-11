@@ -21,7 +21,7 @@ func ExampleInstance() {
 			}),
 	).SetTimeout(time.Second * 4).
 		SetRefreshTimeout(time.Second * 5).Build()
-	token, _ := auth.Sign(instance, "user")
+	token, _ := instance.Sign("user")
 	ctx := &box.Ctx{
 		Request: &restful.Request{
 			Request: &http.Request{
@@ -36,7 +36,7 @@ func ExampleInstance() {
 		panic(err)
 	}
 	fmt.Println(u1)
-	u2, err := auth.CheckToken(instance, token)
+	u2, err := instance.CheckToken(token)
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +46,7 @@ func ExampleInstance() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = auth.CheckToken(instance, newToken)
+	_, err = instance.CheckToken(newToken)
 	if err != nil {
 		panic(err)
 	}
@@ -55,9 +55,9 @@ func ExampleInstance() {
 	// token is expired, newToken is still valid
 	_, err = ctx.IsLogin(instance)
 	fmt.Println(err != nil)
-	_, err = auth.CheckToken(instance, token)
+	_, err = instance.CheckToken(token)
 	fmt.Println(err != nil)
-	_, err = auth.CheckToken(instance, newToken)
+	_, err = instance.CheckToken(newToken)
 	if err != nil {
 		panic(err)
 	}
