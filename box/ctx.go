@@ -40,12 +40,12 @@ type Ctx struct {
 }
 
 // Req returns http.Request of ctx.
-func (ctx Ctx) Req() *http.Request {
+func (ctx *Ctx) Req() *http.Request {
 	return ctx.Request.Request
 }
 
 // Resp returns http.ResponseWriter of ctx.
-func (ctx Ctx) Resp() http.ResponseWriter {
+func (ctx *Ctx) Resp() http.ResponseWriter {
 	return ctx.Response.ResponseWriter
 }
 

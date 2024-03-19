@@ -272,8 +272,8 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 			rst, _ = p.Int64Array()
 		case reflect.Uint:
 			rst, _ = p.UintArray()
-		case reflect.Uint8:
-			rst, _ = p.Uint8Array()
+		case reflect.Uint8: // bytes
+			rst, _ = p.Bytes()
 		case reflect.Uint16:
 			rst, _ = p.Uint16Array()
 		case reflect.Uint32:
