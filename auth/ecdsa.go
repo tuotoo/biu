@@ -35,11 +35,11 @@ func (h *ECDSA) SigningMethod() *jwt.SigningMethodECDSA {
 
 type Ed25519 struct {
 	*jwt.SigningMethodEd25519
-	privateKeyFunc func(string) (*ed25519.PrivateKey, error)
-	publicKeyFunc  func(string) (*ed25519.PublicKey, error)
+	privateKeyFunc func(string) (ed25519.PrivateKey, error)
+	publicKeyFunc  func(string) (ed25519.PublicKey, error)
 }
 
-func NewEd25519(s func(string) (*ed25519.PrivateKey, error), v func(string) (*ed25519.PublicKey, error)) *Ed25519 {
+func NewEd25519(s func(string) (ed25519.PrivateKey, error), v func(string) (ed25519.PublicKey, error)) *Ed25519 {
 	return &Ed25519{
 		SigningMethodEd25519: jwt.SigningMethodEdDSA,
 		privateKeyFunc:       s,
@@ -47,11 +47,11 @@ func NewEd25519(s func(string) (*ed25519.PrivateKey, error), v func(string) (*ed
 	}
 }
 
-func (h *Ed25519) SecretKeyFunc(uid string) (*ed25519.PrivateKey, error) {
+func (h *Ed25519) SecretKeyFunc(uid string) (ed25519.PrivateKey, error) {
 	return h.privateKeyFunc(uid)
 }
 
-func (h *Ed25519) VerifyKeyFunc(uid string) (*ed25519.PublicKey, error) {
+func (h *Ed25519) VerifyKeyFunc(uid string) (ed25519.PublicKey, error) {
 	return h.publicKeyFunc(uid)
 }
 

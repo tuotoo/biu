@@ -15,11 +15,11 @@ type Alg[S SigningKey, V VerifyKey, M SigningMethod] interface {
 }
 
 type SigningKey interface {
-	[]byte | *ecdsa.PrivateKey | *ed25519.PrivateKey | *rsa.PrivateKey
+	[]byte | *ecdsa.PrivateKey | ed25519.PrivateKey | *rsa.PrivateKey
 }
 
 type VerifyKey interface {
-	[]byte | *ecdsa.PublicKey | *ed25519.PublicKey | *rsa.PublicKey
+	[]byte | *ecdsa.PublicKey | ed25519.PublicKey | *rsa.PublicKey
 }
 
 type SigningMethod interface {
