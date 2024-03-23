@@ -54,6 +54,6 @@ func (h *RSAPSS) VerifyKeyFunc(userID string) (*rsa.PublicKey, error) {
 	return h.publicKeyFunc(userID)
 }
 
-func (h *RSAPSS) SigningMethod() *jwt.SigningMethodRSA {
-	return h.SigningMethodRSA
+func (h *RSAPSS) SigningMethod() *jwt.SigningMethodRSAPSS {
+	return h.SigningMethodRSAPSS
 }
