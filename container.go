@@ -175,7 +175,7 @@ func (c *Container) Handle(f func(ctx box.Ctx)) restful.RouteFunction {
 	return HandleWithLogger(f, c.logger)
 }
 
-// Filter transform a biu handler to a restful.FilterFunction
+// FilterFunc transform a biu handler to a restful.FilterFunction
 func (c *Container) FilterFunc(f func(ctx box.Ctx)) restful.FilterFunction {
 	return FilterWithLogger(f, c.logger)
 }
@@ -186,4 +186,12 @@ func (c *Container) RouteIDMap() map[string]string {
 
 func (c *Container) ErrorMap() map[int]string {
 	return c.errors
+}
+
+func (c *Container) NewWS() WS {
+	return WS{
+		WebService: new(restful.WebService),
+		Container:  c,
+		errors:     make(map[string]map[int]string),
+	}
 }

@@ -189,20 +189,12 @@ func addService(
 	for k, v := range cfg.Errors {
 		container.errors[k] = v
 	}
-	commonWS := WS{
-		WebService: new(restful.WebService),
-		Container:  container,
-		errors:     make(map[string]map[int]string),
-	}
+	commonWS := container.NewWS()
 	commonWS.Path(prefix).Produces(restful.MIME_JSON)
 	var filterAdded bool
 	for _, v := range wss {
 		// build web service
-		ws := WS{
-			WebService: new(restful.WebService),
-			Container:  container,
-			errors:     make(map[string]map[int]string),
-		}
+		ws := container.NewWS()
 		wsPath := path.Join("/", prefix, v.NameSpace)
 		ws.Path(wsPath).Produces(restful.MIME_JSON)
 		if inCommonNS {
