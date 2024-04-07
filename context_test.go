@@ -7,6 +7,7 @@ import (
 	"github.com/gavv/httpexpect/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/opt"
@@ -23,7 +24,7 @@ func (m MockAuthTokenManager) SignWithClaims(uid string, claims map[string]any) 
 }
 
 func (m MockAuthTokenManager) ParseToken(token string) (*jwt.Token, error) {
-	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+	return jwt.Parse(token, func(token *jwt.Token) (any, error) {
 		return []byte(""), nil
 	})
 }

@@ -2,8 +2,7 @@ package biu
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +22,6 @@ import (
 
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/internal"
-	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
@@ -122,10 +120,11 @@ func (ws WS) Route(builder *restful.RouteBuilder, opts ...opt.RouteFunc) {
 	if AutoGenPathDoc && cfg.EnableAutoPathDoc {
 		exp, err := internal.NewPathExpression(p2)
 		if err != nil {
-			ws.Container.logger.Fatal(log.BiuInternalInfo{
-				Err:    fmt.Errorf("invalid routePath: %w", err),
-				Extras: map[string]interface{}{"routePath": p2},
-			})
+			ws.Container.logger.Error("invalid routePath",
+				slog.Any("err", err),
+				slog.String("routePath", p2),
+			)
+			os.Exit(1)
 		}
 		for i, v := range exp.VarNames {
 			desc := v
@@ -231,7 +230,7 @@ func addService(
 		routes := ws.Routes()
 		for ri, r := range routes {
 			if routes[ri].Metadata == nil {
-				routes[ri].Metadata = make(map[string]interface{})
+				routes[ri].Metadata = make(map[string]any)
 			}
 			if len(routes[ri].Consumes) == 0 {
 				if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
@@ -241,10 +240,10 @@ func addService(
 				}
 			}
 			if strings.HasPrefix(path.Join(r.Path, "/"), path.Join(wsPath, "/")) {
-				container.logger.Info(log.BiuInternalInfo{Extras: map[string]interface{}{
-					"PATH":   r.Path,
-					"METHOD": r.Method,
-				}})
+				container.logger.Info("route",
+					slog.String("PATH", r.Path),
+					slog.String("METHOD", r.Method),
+				)
 				routes[ri].Metadata[restfulspec.KeyOpenAPITags] = []string{v.NameSpace}
 			}
 		}
@@ -317,41 +316,26 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 	addrChan := make(chan string)
 
 	go func() {
-		c.logger.Info(log.BiuInternalInfo{
-			Err: fmt.Errorf("listen and serve: %w", ListenAndServe(c.Server, addrChan)),
-		})
+		c.logger.Info("listen and serve", slog.Any("err", ListenAndServe(c.Server, addrChan)))
 		if cfg.Cancel != nil {
 			cfg.Cancel()
 		}
 	}()
 	select {
 	case addr := <-addrChan:
-		c.logger.Info(log.BiuInternalInfo{
-			Extras: map[string]interface{}{
-				"Listening Addr": addr,
-			},
-		})
+		c.logger.Info("listen", slog.String("addr", addr))
 		cfg.AfterStart()
 	case <-time.After(time.Second):
-		c.logger.Fatal(log.BiuInternalInfo{
-			Err: errors.New("start server timeout"),
-		})
+		c.logger.Error("start server timeout")
+		os.Exit(1)
 	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	c.logger.Info(log.BiuInternalInfo{
-		Extras: map[string]interface{}{
-			"Received Signal": <-ch,
-		},
-	})
+	c.logger.Info("Received Signal", slog.Any("signal", <-ch))
 
 	cfg.BeforeShutDown()
-	c.logger.Info(log.BiuInternalInfo{
-		Extras: map[string]interface{}{
-			"Server Shutdown": c.Server.Shutdown(cfg.Ctx),
-		},
-	})
+	c.logger.Info("Server Shutdown", slog.Any("err", c.Server.Shutdown(cfg.Ctx)))
 	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
 }
@@ -382,16 +366,14 @@ func LogFilter() restful.FilterFunction {
 	return DefaultContainer.FilterFunc(func(ctx box.Ctx) {
 		start := time.Now()
 		ctx.Next()
-		ctx.Logger.Info(log.BiuInternalInfo{
-			Extras: map[string]interface{}{
-				"remote_addr":    ctx.IP(),
-				"method":         ctx.Req().Method,
-				"uri":            ctx.Req().URL.RequestURI(),
-				"proto":          ctx.Req().Proto,
-				"status_code":    ctx.Response.StatusCode(),
-				"dur":            time.Since(start),
-				"content_length": ctx.Response.ContentLength(),
-			},
-		})
+		ctx.Logger.Info("request",
+			slog.String("remote_addr", ctx.IP()),
+			slog.String("method", ctx.Req().Method),
+			slog.String("uri", ctx.Req().URL.RequestURI()),
+			slog.String("proto", ctx.Req().Proto),
+			slog.Int("status_code", ctx.Response.StatusCode()),
+			slog.Duration("dur", time.Since(start)),
+			slog.Int("content_length", ctx.Response.ContentLength()),
+		)
 	})
 }

@@ -2,14 +2,15 @@ package biu
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-openapi/spec"
 
 	"github.com/tuotoo/biu/box"
-	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/opt"
 )
 
@@ -30,7 +31,7 @@ type Container struct {
 	swaggerTags map[*http.ServeMux][]spec.Tag
 	errors      map[int]string
 	routeID     map[string]string
-	logger      log.ILogger
+	logger      *slog.Logger
 }
 
 func DefaultResponseTransformer(ctx box.Ctx) {
@@ -41,7 +42,7 @@ func DefaultResponseTransformer(ctx box.Ctx) {
 		return
 	}
 
-	entities, ok := ctx.Attribute(box.BiuAttrEntities).([]interface{})
+	entities, ok := ctx.Attribute(box.BiuAttrEntities).([]any)
 	if !ok {
 		return
 	}
@@ -54,13 +55,12 @@ func DefaultResponseTransformer(ctx box.Ctx) {
 		RouteID: ctx.RouteID(),
 	})
 	if err != nil {
-		ctx.Logger.Info(log.BiuInternalInfo{
-			Err: err,
-			Extras: map[string]interface{}{
-				"Data":    entities[0],
-				"RouteID": ctx.RouteID(),
-			},
-		})
+		ctx.Logger.Error(
+			"write json failed",
+			slog.Any("data", entities[0]),
+			slog.String("routeID", ctx.RouteID()),
+			slog.Any("err", err),
+		)
 	}
 }
 
@@ -77,36 +77,28 @@ func DefaultErrorTransformer(c *Container) func(ctx box.Ctx) {
 		if !ok {
 			msg = c.ErrorMap()[code]
 		}
-		args, ok := ctx.Attribute(box.BiuAttrErrArgs).([]interface{})
+		args, ok := ctx.Attribute(box.BiuAttrErrArgs).([]any)
 		if ok && len(args) > 0 {
 			msg = fmt.Sprintf(msg, args...)
 		}
-		logInfo := log.BiuInternalInfo{
-			Extras: map[string]interface{}{
-				"routeID":  ctx.RouteID(),
-				"routeSig": ctx.RouteSignature(),
-				"code":     code,
-				"msg":      msg,
-			},
-		}
+		logger := ctx.Logger.With(
+			slog.String("routeID", ctx.RouteID()),
+			slog.String("routeSig", ctx.RouteSignature()),
+			slog.Int("code", code),
+			slog.String("msg", msg),
+		)
 		if err, ok := ctx.Attribute(box.BiuAttrErr).(error); ok && err != nil {
-			logInfo.Err = err
+			logger.Error("get err attr failed", slog.Any("err", err))
+		} else {
+			logger.Info("Err Resp")
 		}
-		ctx.Logger.Info(logInfo)
 		err := ctx.WriteAsJson(box.CommonResp{
 			Code:    code,
 			Message: msg,
 			RouteID: ctx.RouteID(),
 		})
 		if err != nil {
-			ctx.Logger.Info(log.BiuInternalInfo{
-				Err: err,
-				Extras: map[string]interface{}{
-					"Code":    code,
-					"Msg":     msg,
-					"RouteID": ctx.RouteID(),
-				},
-			})
+			logger.Error("write json failed", slog.Any("err", err))
 		}
 	}
 }
@@ -134,7 +126,9 @@ func NewContainer(container ...*restful.Container) *Container {
 		swaggerTags: make(map[*http.ServeMux][]spec.Tag),
 		routeID:     routeMap,
 		errors:      errors,
-		logger:      log.DefaultLogger{},
+		logger: slog.New(
+			slog.NewTextHandler(os.Stdout, nil),
+		),
 	}
 	return c
 }

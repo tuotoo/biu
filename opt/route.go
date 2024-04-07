@@ -63,8 +63,8 @@ type ParamOpt struct {
 	IsMulti   bool
 	FieldType FieldType
 	FieldName string
-	Body      interface{}
-	Return    interface{}
+	Body      any
+	Return    any
 }
 
 // Route is the options of route.
@@ -92,7 +92,7 @@ func RouteTo(f func(ctx box.Ctx)) RouteFunc {
 	}
 }
 
-func RouteAPI(f interface{}) RouteFunc {
+func RouteAPI(f any) RouteFunc {
 	vf := reflect.ValueOf(f)
 	if vf.Kind() != reflect.Func {
 		log.Fatal("route argument must be a function")
@@ -135,7 +135,7 @@ func RouteAPI(f interface{}) RouteFunc {
 		if body.Type.Kind() == reflect.Ptr {
 			bodyType = bodyType.Elem()
 		}
-		var bodyExampleValue interface{}
+		var bodyExampleValue any
 		sig := typeSignature(bodyType)
 		switch sig {
 		case "io.ReadCloser", "io.Reader":
@@ -253,7 +253,7 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 			return
 		}
 	case reflect.Array, reflect.Slice:
-		var rst interface{}
+		var rst any
 		elem := field.Type().Elem()
 		switch elem.Kind() {
 		case reflect.String:

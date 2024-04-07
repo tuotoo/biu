@@ -2,6 +2,7 @@ package box
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/mpvl/errc"
 
 	"github.com/tuotoo/biu/auth"
-	"github.com/tuotoo/biu/log"
 	"github.com/tuotoo/biu/param"
 )
 
@@ -36,7 +36,7 @@ type Ctx struct {
 	*restful.Response
 	*restful.FilterChain
 	ErrCatcher errc.Catcher
-	Logger     log.ILogger
+	Logger     *slog.Logger
 }
 
 // Req returns http.Request of ctx.
@@ -51,12 +51,12 @@ func (ctx *Ctx) Resp() http.ResponseWriter {
 
 // ResponseJSON is a convenience method
 // for writing a value wrap in CommonResp as JSON.
-func (ctx *Ctx) ResponseJSON(v ...interface{}) {
+func (ctx *Ctx) ResponseJSON(v ...any) {
 	ctx.SetAttribute(BiuAttrEntities, v)
 }
 
-func (ctx *Ctx) Transform(f func(...interface{}) []interface{}) {
-	if entities, ok := ctx.Attribute(BiuAttrEntities).([]interface{}); ok {
+func (ctx *Ctx) Transform(f func(...any) []any) {
+	if entities, ok := ctx.Attribute(BiuAttrEntities).([]any); ok {
 		ctx.SetAttribute(BiuAttrEntities, f(entities...))
 	}
 }
@@ -87,7 +87,7 @@ func (ctx *Ctx) Redirect(url string, code int) {
 // If error is nil, it will return false,
 // else it will log the error, make a CommonResp response and return true.
 // if code is 0, it will use err.Error() as CommonResp.message.
-func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
+func (ctx *Ctx) ContainsError(err error, code int, v ...any) bool {
 	if err == nil {
 		return false
 	}
@@ -98,7 +98,7 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...interface{}) bool {
 type errHandler struct {
 	ctx  *Ctx
 	code int
-	v    []interface{}
+	v    []any
 }
 
 // Handle implements errc.Handle
@@ -116,13 +116,13 @@ func (e errHandler) Handle(s errc.State, err error) error {
 }
 
 // Must causes a return from a function if err is not nil.
-func (ctx *Ctx) Must(err error, code int, v ...interface{}) {
+func (ctx *Ctx) Must(err error, code int, v ...any) {
 	ctx.ErrCatcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
 }
 
 // ResponseStdErrCode is a convenience method response a code
 // with msg in Code Desc.
-func (ctx *Ctx) ResponseStdErrCode(code int, v ...interface{}) {
+func (ctx *Ctx) ResponseStdErrCode(code int, v ...any) {
 	ctx.SetAttribute(BiuAttrErrCode, code)
 	ctx.SetAttribute(BiuAttrErrArgs, v)
 }
@@ -226,44 +226,44 @@ func filterFlags(content string) string {
 // It parses the request's body as JSON if Content-Type == "application/json" using JSON or XML as a JSON input.
 // It decodes the json payload into the struct specified as a pointer.
 // It writes a 400 error and sets Content-Type header "text/plain" in the response if input is not valid.
-func (ctx *Ctx) Bind(obj interface{}) error {
+func (ctx *Ctx) Bind(obj any) error {
 	b := binding.Default(ctx.Req().Method, filterFlags(ctx.Request.HeaderParameter("Content-Type")))
 	return ctx.BindWith(obj, b)
 }
 
 // MustBind is a shortcur for ctx.Must(ctx.Bind(obj), code, v...)
-func (ctx *Ctx) MustBind(obj interface{}, code int, v ...interface{}) {
+func (ctx *Ctx) MustBind(obj any, code int, v ...any) {
 	ctx.Must(ctx.Bind(obj), code, v...)
 }
 
 // BindWith binds the passed struct pointer using the specified binding engine.
 // See the binding package.
-func (ctx *Ctx) BindWith(obj interface{}, b binding.Binding) error {
+func (ctx *Ctx) BindWith(obj any, b binding.Binding) error {
 	return b.Bind(ctx.Req(), obj)
 }
 
 // MustBindWith is a shortcur for ctx.Must(ctx.BindWith(obj, b), code, v...)
-func (ctx *Ctx) MustBindWith(obj interface{}, b binding.Binding, code int, v ...interface{}) {
+func (ctx *Ctx) MustBindWith(obj any, b binding.Binding, code int, v ...any) {
 	ctx.Must(ctx.BindWith(obj, b), code, v...)
 }
 
 // BindJSON is a shortcut for ctx.BindWith(obj, binding.JSON).
-func (ctx *Ctx) BindJSON(obj interface{}) error {
+func (ctx *Ctx) BindJSON(obj any) error {
 	return ctx.BindWith(obj, binding.JSON)
 }
 
 // MustBindJSON is a shortcur for ctx.Must(ctx.BindJSON(obj), code, v...)
-func (ctx *Ctx) MustBindJSON(obj interface{}, code int, v ...interface{}) {
+func (ctx *Ctx) MustBindJSON(obj any, code int, v ...any) {
 	ctx.Must(ctx.BindJSON(obj), code, v...)
 }
 
 // BindQuery is a shortcut for ctx.BindWith(obj, binding.Query).
-func (ctx *Ctx) BindQuery(obj interface{}) error {
+func (ctx *Ctx) BindQuery(obj any) error {
 	return ctx.BindWith(obj, binding.Query)
 }
 
 // MustBindQuery is a shortcur for ctx.Must(ctx.BindQuery(obj), code, v...)
-func (ctx *Ctx) MustBindQuery(obj interface{}, code int, v ...interface{}) {
+func (ctx *Ctx) MustBindQuery(obj any, code int, v ...any) {
 	ctx.Must(ctx.BindQuery(obj), code, v...)
 }
 

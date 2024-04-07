@@ -29,8 +29,8 @@ func (ctl test) WebService(ws biu.WS) {
 
 	ws.Route(ws.GET("/{id}").Filter(biu.Filter(func(ctx box.Ctx) {
 		ctx.Next()
-		ctx.Transform(func(i ...interface{}) []interface{} {
-			return []interface{}{i[0].(string) + " TRANSFORM " + i[1].(string)}
+		ctx.Transform(func(i ...any) []any {
+			return []any{i[0].(string) + " TRANSFORM " + i[1].(string)}
 		})
 	})),
 		opt.RouteID("test.addService"),

@@ -1,6 +1,7 @@
 package biu
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/emicklei/go-restful/v3"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
-	"github.com/tuotoo/biu/log"
 )
 
 // Handle transform a biu handler to a restful.RouteFunction.
@@ -16,7 +16,7 @@ func Handle(f func(ctx box.Ctx)) restful.RouteFunction {
 	return HandleWithLogger(f, DefaultContainer.logger)
 }
 
-func HandleWithLogger(f func(ctx box.Ctx), logger log.ILogger) restful.RouteFunction {
+func HandleWithLogger(f func(ctx box.Ctx), logger *slog.Logger) restful.RouteFunction {
 	return func(request *restful.Request, response *restful.Response) {
 		c := box.Ctx{
 			Request:  request,
@@ -35,7 +35,7 @@ func Filter(f func(ctx box.Ctx)) restful.FilterFunction {
 	return FilterWithLogger(f, DefaultContainer.logger)
 }
 
-func FilterWithLogger(f func(ctx box.Ctx), logger log.ILogger) restful.FilterFunction {
+func FilterWithLogger(f func(ctx box.Ctx), logger *slog.Logger) restful.FilterFunction {
 	return func(request *restful.Request, response *restful.Response,
 		chain *restful.FilterChain) {
 		c := box.Ctx{

@@ -41,7 +41,7 @@ func (i *TokenManager[S, V, M, T]) SignWithClaims(uid string, claims map[string]
 
 // ParseToken parse a token string.
 func (i *TokenManager[S, V, M, T]) ParseToken(token string) (*jwt.Token, error) {
-	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+	return jwt.Parse(token, func(token *jwt.Token) (any, error) {
 		if _, methodOK := token.Method.(M); !methodOK {
 			signingErr := fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			return nil, signingErr

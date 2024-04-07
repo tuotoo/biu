@@ -25,9 +25,9 @@ func NewPathExpression(path string) (*pathExpression, error) {
 }
 
 //go:linkname nameOfFunction github.com/emicklei/go-restful/v3.nameOfFunction
-func nameOfFunction(f interface{}) string
+func nameOfFunction(f any) string
 
-func NameOfFunction(f interface{}) string {
+func NameOfFunction(f any) string {
 	return nameOfFunction(f)
 }
 
