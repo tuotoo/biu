@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 	_ "unsafe"
 
@@ -20,6 +21,7 @@ import (
 const (
 	defaultMaxMemory  = 32 << 20 // 32 MB
 	BiuAttrErr        = "__BIU_ERROR__"
+	BiuAttrErrLine    = "__BIU_ERROR_LINE__"
 	BiuAttrErrCode    = "__BIU_ERROR_CODE__"
 	BiuAttrErrMsg     = "__BIU_ERROR_MESSAGE__"
 	BiuAttrErrArgs    = "__BIU_ERROR_ARGS__"
@@ -112,10 +114,35 @@ func (e errHandler) Handle(s errc.State, err error) error {
 	}
 	e.ctx.ResponseStdErrCode(e.code, e.v...)
 	e.ctx.SetAttribute(BiuAttrErr, err)
+	e.ctx.SetAttribute(BiuAttrErrLine, getErrLine())
 	return err
 }
 
-// Must causes a return from a function if err is not nil.
+func getErrLine() string {
+	stackBuffer := make([]uintptr, 32)
+	length := runtime.Callers(6, stackBuffer[:])
+	stack := stackBuffer[:length]
+
+	frames := runtime.CallersFrames(stack)
+	var catchNext bool
+	for {
+		frame, more := frames.Next()
+		if !more {
+			break
+		}
+		if strings.Contains(frame.File, "biu/box/ctx.go") {
+			catchNext = true
+			continue
+		}
+		if !catchNext {
+			continue
+		}
+		return fmt.Sprintf("%s:%s:%d", frame.File, frame.Function, frame.Line)
+	}
+	return ""
+}
+
+// Must cause a return from a function if err is not nil.
 func (ctx *Ctx) Must(err error, code int, v ...any) {
 	ctx.ErrCatcher.Must(err, errHandler{ctx: ctx, code: code, v: v})
 }

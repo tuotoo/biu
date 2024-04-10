@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-openapi/spec"
@@ -87,8 +88,14 @@ func DefaultErrorTransformer(c *Container) func(ctx box.Ctx) {
 			slog.Int("code", code),
 			slog.String("msg", msg),
 		)
+		errAttr := make([]slog.Attr, 0, 3)
+		if line, ok := ctx.Attribute(box.BiuAttrErrLine).(string); ok && line != "" {
+			errAttr = append(errAttr, slog.String("line", line))
+		}
 		if err, ok := ctx.Attribute(box.BiuAttrErr).(error); ok && err != nil {
-			logger.Error("get err attr failed", slog.Any("err", err))
+			errAttr = append(errAttr, slog.Any("message", err))
+			errAttr = append(errAttr, slog.Any("type", reflect.TypeOf(err).String()))
+			logger.Warn("Err Resp", slog.Any("err", slog.GroupValue(errAttr...)))
 		} else {
 			logger.Info("Err Resp")
 		}
@@ -130,6 +137,12 @@ func NewContainer(container ...*restful.Container) *Container {
 			slog.NewTextHandler(os.Stdout, nil),
 		),
 	}
+	return c
+}
+
+// SetLogger sets the slog.Logger of the Container
+func (c *Container) SetLogger(logger *slog.Logger) *Container {
+	c.logger = logger
 	return c
 }
 
