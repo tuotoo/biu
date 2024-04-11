@@ -64,11 +64,10 @@ func main() {
 					NoColor:    !isatty.IsTerminal(os.Stdout.Fd()),
 				}),
 			),
-		),
-	)
-	c.Filter(biu.LogFilter(c))
-	c.Filter(c.FilterFunc(biu.DefaultResponseTransformer))
-	c.Filter(c.FilterFunc(biu.DefaultErrorTransformer(c)))
+		)).
+		DefaultLogFilter().
+		DefaultResponseTransformer().
+		DefaultErrorTransformer()
 	c.AddServices("/v1", opt.ServicesFuncArr{
 		opt.ServiceErrors(map[int]string{
 			100: "something goes wrong",

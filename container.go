@@ -189,6 +189,21 @@ func (c *Container) FilterFunc(f func(ctx box.Ctx)) restful.FilterFunction {
 	return FilterWithLogger(f, c.logger)
 }
 
+func (c *Container) DefaultResponseTransformer() *Container {
+	c.Filter(c.FilterFunc(DefaultResponseTransformer))
+	return c
+}
+
+func (c *Container) DefaultErrorTransformer() *Container {
+	c.Filter(c.FilterFunc(DefaultErrorTransformer(c)))
+	return c
+}
+
+func (c *Container) DefaultLogFilter() *Container {
+	c.Filter(LogFilter(c))
+	return c
+}
+
 func (c *Container) RouteIDMap() map[string]string {
 	return c.routeID
 }
