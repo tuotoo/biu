@@ -57,11 +57,11 @@ func main() {
 				slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 					Level: slog.LevelWarn,
 				}),
-				tint.NewHandler(colorable.NewColorable(os.Stderr), &tint.Options{
+				tint.NewHandler(colorable.NewColorable(os.Stdout), &tint.Options{
 					Level:      slog.LevelDebug,
 					AddSource:  true,
 					TimeFormat: time.Kitchen,
-					NoColor:    !isatty.IsTerminal(os.Stderr.Fd()),
+					NoColor:    !isatty.IsTerminal(os.Stdout.Fd()),
 				}),
 			),
 		),
