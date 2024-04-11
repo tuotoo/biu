@@ -83,19 +83,21 @@ func DefaultErrorTransformer(c *Container) func(ctx box.Ctx) {
 			msg = fmt.Sprintf(msg, args...)
 		}
 		logger := ctx.Logger.With(
-			slog.String("routeID", ctx.RouteID()),
-			slog.String("routeSig", ctx.RouteSignature()),
+			slog.Group("route",
+				slog.String("id", ctx.RouteID()),
+				slog.String("sig", ctx.RouteSignature()),
+			),
 			slog.Int("code", code),
 			slog.String("msg", msg),
 		)
-		errAttr := make([]slog.Attr, 0, 3)
+		errAttr := make([]any, 0, 3)
 		if line, ok := ctx.Attribute(box.BiuAttrErrLine).(string); ok && line != "" {
 			errAttr = append(errAttr, slog.String("line", line))
 		}
 		if err, ok := ctx.Attribute(box.BiuAttrErr).(error); ok && err != nil {
 			errAttr = append(errAttr, slog.Any("message", err))
 			errAttr = append(errAttr, slog.Any("type", reflect.TypeOf(err).String()))
-			logger.Warn("Err Resp", slog.Any("err", slog.GroupValue(errAttr...)))
+			logger.Warn("Err Resp", slog.Group("err", errAttr...))
 		} else {
 			logger.Info("Err Resp")
 		}

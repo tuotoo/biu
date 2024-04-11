@@ -124,20 +124,18 @@ func getErrLine() string {
 	stack := stackBuffer[:length]
 
 	frames := runtime.CallersFrames(stack)
-	var catchNext bool
 	for {
 		frame, more := frames.Next()
 		if !more {
 			break
 		}
-		if strings.Contains(frame.File, "biu/box/ctx.go") {
-			catchNext = true
-			continue
+		if strings.HasSuffix(frame.File, "biu/box/ctx.go") {
+			frame, more := frames.Next()
+			if !more {
+				break
+			}
+			return fmt.Sprintf("%s:%s:%d", frame.File, frame.Function, frame.Line)
 		}
-		if !catchNext {
-			continue
-		}
-		return fmt.Sprintf("%s:%s:%d", frame.File, frame.Function, frame.Line)
 	}
 	return ""
 }
@@ -258,7 +256,7 @@ func (ctx *Ctx) Bind(obj any) error {
 	return ctx.BindWith(obj, b)
 }
 
-// MustBind is a shortcur for ctx.Must(ctx.Bind(obj), code, v...)
+// MustBind is a shortcut for ctx.Must(ctx.Bind(obj), code, v...)
 func (ctx *Ctx) MustBind(obj any, code int, v ...any) {
 	ctx.Must(ctx.Bind(obj), code, v...)
 }
@@ -269,7 +267,7 @@ func (ctx *Ctx) BindWith(obj any, b binding.Binding) error {
 	return b.Bind(ctx.Req(), obj)
 }
 
-// MustBindWith is a shortcur for ctx.Must(ctx.BindWith(obj, b), code, v...)
+// MustBindWith is a shortcut for ctx.Must(ctx.BindWith(obj, b), code, v...)
 func (ctx *Ctx) MustBindWith(obj any, b binding.Binding, code int, v ...any) {
 	ctx.Must(ctx.BindWith(obj, b), code, v...)
 }
@@ -279,7 +277,7 @@ func (ctx *Ctx) BindJSON(obj any) error {
 	return ctx.BindWith(obj, binding.JSON)
 }
 
-// MustBindJSON is a shortcur for ctx.Must(ctx.BindJSON(obj), code, v...)
+// MustBindJSON is a shortcut for ctx.Must(ctx.BindJSON(obj), code, v...)
 func (ctx *Ctx) MustBindJSON(obj any, code int, v ...any) {
 	ctx.Must(ctx.BindJSON(obj), code, v...)
 }
@@ -289,7 +287,7 @@ func (ctx *Ctx) BindQuery(obj any) error {
 	return ctx.BindWith(obj, binding.Query)
 }
 
-// MustBindQuery is a shortcur for ctx.Must(ctx.BindQuery(obj), code, v...)
+// MustBindQuery is a shortcut for ctx.Must(ctx.BindQuery(obj), code, v...)
 func (ctx *Ctx) MustBindQuery(obj any, code int, v ...any) {
 	ctx.Must(ctx.BindQuery(obj), code, v...)
 }

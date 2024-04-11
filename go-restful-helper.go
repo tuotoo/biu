@@ -240,7 +240,7 @@ func addService(
 				}
 			}
 			if strings.HasPrefix(path.Join(r.Path, "/"), path.Join(wsPath, "/")) {
-				container.logger.Info("route",
+				container.logger.Debug("route",
 					slog.String("PATH", r.Path),
 					slog.String("METHOD", r.Method),
 				)
@@ -316,14 +316,14 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 	addrChan := make(chan string)
 
 	go func() {
-		c.logger.Info("listen and serve", slog.Any("err", ListenAndServe(c.Server, addrChan)))
+		c.logger.Debug("listen and serve", slog.Any("err", ListenAndServe(c.Server, addrChan)))
 		if cfg.Cancel != nil {
 			cfg.Cancel()
 		}
 	}()
 	select {
 	case addr := <-addrChan:
-		c.logger.Info("listen", slog.String("addr", addr))
+		c.logger.Debug("listen", slog.String("addr", addr))
 		cfg.AfterStart()
 	case <-time.After(time.Second):
 		c.logger.Error("start server timeout")
@@ -332,10 +332,10 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	c.logger.Info("Received Signal", slog.Any("signal", <-ch))
+	c.logger.Debug("Received Signal", slog.Any("signal", <-ch))
 
 	cfg.BeforeShutDown()
-	c.logger.Info("Server Shutdown", slog.Any("err", c.Server.Shutdown(cfg.Ctx)))
+	c.logger.Debug("Server Shutdown", slog.Any("err", c.Server.Shutdown(cfg.Ctx)))
 	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
 }
@@ -362,8 +362,11 @@ func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
 //	}
 //
 // for each request
-func LogFilter() restful.FilterFunction {
-	return DefaultContainer.FilterFunc(func(ctx box.Ctx) {
+func LogFilter(c ...*Container) restful.FilterFunction {
+	if len(c) == 0 {
+		c = []*Container{DefaultContainer}
+	}
+	return c[0].FilterFunc(func(ctx box.Ctx) {
 		start := time.Now()
 		ctx.Next()
 		ctx.Logger.Info("request",

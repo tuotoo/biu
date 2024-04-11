@@ -1,6 +1,16 @@
 package main
 
 import (
+	"log/slog"
+	"os"
+	"time"
+
+	"braces.dev/errtrace"
+	"github.com/lmittmann/tint"
+	"github.com/mattn/go-colorable"
+	"github.com/mattn/go-isatty"
+	slogmulti "github.com/samber/slog-multi"
+
 	"github.com/tuotoo/biu"
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/opt"
@@ -32,17 +42,33 @@ type Bar struct {
 	Num int    `json:"num"`
 }
 
+// try with: curl "127.0.0.1:8080/v1/foo?num=hey"
 func (ctl Foo) getBar(ctx box.Ctx) {
 	num, err := ctx.Query("num").Int()
-	if ctx.ContainsError(err, 200, ctx.QueryParameter("num")) {
-		return
-	}
+	ctx.Must(errtrace.Wrap(err), 200, ctx.QueryParameter("num"))
 
 	ctx.ResponseJSON(Bar{Msg: "bar", Num: num})
 }
 
 func main() {
-	c := biu.New()
+	c := biu.NewContainer().SetLogger(
+		slog.New(
+			slogmulti.Fanout(
+				slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+					Level: slog.LevelWarn,
+				}),
+				tint.NewHandler(colorable.NewColorable(os.Stderr), &tint.Options{
+					Level:      slog.LevelDebug,
+					AddSource:  true,
+					TimeFormat: time.Kitchen,
+					NoColor:    !isatty.IsTerminal(os.Stderr.Fd()),
+				}),
+			),
+		),
+	)
+	c.Filter(biu.LogFilter(c))
+	c.Filter(c.FilterFunc(biu.DefaultResponseTransformer))
+	c.Filter(c.FilterFunc(biu.DefaultErrorTransformer(c)))
 	c.AddServices("/v1", opt.ServicesFuncArr{
 		opt.ServiceErrors(map[int]string{
 			100: "something goes wrong",
