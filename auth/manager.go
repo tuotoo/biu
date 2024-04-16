@@ -73,7 +73,7 @@ func (i *TokenManager[S, V, M, T]) RefreshToken(token string) (newToken string, 
 	}
 	iatF64, ok := claims["iat"].(float64)
 	if !ok {
-		return "", errors.New("not available iat")
+		return "", errors.New("no available iat")
 	}
 	now := time.Now()
 	iat := int64(iatF64)

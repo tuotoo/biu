@@ -112,7 +112,7 @@ func DefaultErrorTransformer(c *Container) func(ctx box.Ctx) {
 	}
 }
 
-// New creates a new restful container.
+// New creates a new restful container with default response and error transformer.
 func New(container ...*restful.Container) *Container {
 	c := NewContainer(container...)
 	c.Filter(c.FilterFunc(DefaultResponseTransformer))
@@ -120,6 +120,7 @@ func New(container ...*restful.Container) *Container {
 	return c
 }
 
+// NewContainer creates a new restful container.
 func NewContainer(container ...*restful.Container) *Container {
 	var rc *restful.Container
 	if len(container) > 0 {
@@ -189,16 +190,19 @@ func (c *Container) FilterFunc(f func(ctx box.Ctx)) restful.FilterFunction {
 	return FilterWithLogger(f, c.logger)
 }
 
+// DefaultResponseTransformer is a chainable api.
 func (c *Container) DefaultResponseTransformer() *Container {
 	c.Filter(c.FilterFunc(DefaultResponseTransformer))
 	return c
 }
 
+// DefaultErrorTransformer is a chainable api.
 func (c *Container) DefaultErrorTransformer() *Container {
 	c.Filter(c.FilterFunc(DefaultErrorTransformer(c)))
 	return c
 }
 
+// DefaultLogFilter is a chainable api.
 func (c *Container) DefaultLogFilter() *Container {
 	c.Filter(LogFilter(c))
 	return c
