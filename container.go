@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"slices"
 
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-openapi/spec"
@@ -224,6 +225,6 @@ func (c *Container) NewWS() WS {
 	}
 }
 
-func (c *Container) RouteAPI(f any) opt.RouteFunc {
-	return opt.RouteAPI(f, opt.WithLogger(c.logger))
+func (c *Container) RouteAPI(f any, opts ...opt.RouteAPIOpts) opt.RouteFunc {
+	return opt.RouteAPI(f, slices.Concat([]opt.RouteAPIOpts{opt.WithLogger(c.logger)}, opts)...)
 }
