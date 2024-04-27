@@ -10,7 +10,6 @@ import (
 
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
-	"github.com/tuotoo/biu/opt"
 )
 
 type MockAuthTokenManager struct {
@@ -42,7 +41,7 @@ func TestAuthFilter(t *testing.T) {
 	assert.NoError(t, err)
 	e.Filter(AuthFilter(100, authInstance))
 	ws := e.NewWS()
-	ws.Route(ws.POST("/auth"), opt.RouteAPI(func(ctx box.Ctx, api struct {
+	ws.Route(ws.POST("/auth"), ws.RouteAPI(func(ctx box.Ctx, api struct {
 		Return func(string)
 	}) {
 		assert.Equal(t, "1", ctx.UserID())

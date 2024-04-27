@@ -223,3 +223,7 @@ func (c *Container) NewWS() WS {
 		errors:     make(map[string]map[int]string),
 	}
 }
+
+func (c *Container) RouteAPI(f any) opt.RouteFunc {
+	return opt.RouteAPI(f, opt.WithLogger(c.logger))
+}
