@@ -71,7 +71,10 @@ func (ctx *Ctx) ResponseError(code int, msg string) {
 
 // RouteID returns the RouteID of current route.
 func (ctx *Ctx) RouteID() string {
-	return ctx.Attribute(BiuAttrRouteID).(string)
+	if routeID, ok := ctx.Attribute(BiuAttrRouteID).(string); ok {
+		return routeID
+	}
+	return ""
 }
 
 // RouteSignature returns the signature of current route.

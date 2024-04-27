@@ -55,6 +55,7 @@ type ParamOpt struct {
 	FieldName string
 	Body      any
 	Return    any
+	HasVd     bool
 }
 
 // Route is the options of route.

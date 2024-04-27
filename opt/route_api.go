@@ -1,20 +1,44 @@
 package opt
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
+
+	"github.com/go-playground/validator/v10"
 
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/internal"
 	"github.com/tuotoo/biu/param"
 )
+
+type defaultValidator struct {
+	once     sync.Once
+	validate *validator.Validate
+}
+
+func (v *defaultValidator) validateStruct(ctx context.Context, obj any) error {
+	v.lazyInit()
+	return v.validate.StructCtx(ctx, obj)
+}
+
+func (v *defaultValidator) lazyInit() {
+	v.once.Do(func() {
+		v.validate = validator.New()
+		v.validate.SetTagName("vd")
+	})
+}
+
+var Validator = &defaultValidator{}
 
 type RouteAPIOption struct {
 	logger *slog.Logger
@@ -161,6 +185,20 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 					}))
 			default:
 				setField(sv, ctx, v)
+			}
+		}
+		if slices.ContainsFunc(params, func(opt ParamOpt) bool {
+			return opt.HasVd
+		}) {
+			if err := Validator.validateStruct(ctx.Req().Context(), sv.Interface()); err != nil {
+				ctx.Logger.DebugContext(ctx.Req().Context(), "parameter validate failed",
+					slog.Group("route",
+						slog.String("id", ctx.RouteID()),
+						slog.String("sig", ctx.RouteSignature()),
+					),
+					slog.Any("error", err),
+				)
+				return
 			}
 		}
 		vf.Call([]reflect.Value{reflect.ValueOf(ctx), sv})
@@ -391,6 +429,7 @@ func appendParam(o appendParamOptions) []ParamOpt {
 				}
 			}
 		}
+		_, hasVd := o.t.Field(i).Tag.Lookup("vd")
 		if _, ok := tags[APITagIgnore]; ok {
 			continue
 		}
@@ -418,6 +457,7 @@ func appendParam(o appendParamOptions) []ParamOpt {
 			IsMulti:   typ.multi,
 			FieldName: fieldName,
 			Desc:      tags[APITagDesc],
+			HasVd:     hasVd,
 		})
 	}
 	return o.params

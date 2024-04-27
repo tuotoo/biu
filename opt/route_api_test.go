@@ -3,10 +3,12 @@ package opt_test
 import (
 	"bytes"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -390,11 +392,26 @@ func TestRouteAPI(t *testing.T) {
 				assert.Equal(t, "123", string(bs))
 			},
 		},
+		{
+			req: func() *restful.Request {
+				return restful.NewRequest(httptest.NewRequest(http.MethodPost, "/?a=1", nil))
+			},
+			routAPI: func(ctx box.Ctx, api struct {
+				Query struct {
+					A int `vd:"min=5"`
+				}
+			}) {
+				assert.FailNow(t, "should not be reached")
+			},
+		},
 	} {
 		cfg := &opt.Route{}
 		opt.RouteAPI(v.routAPI)(cfg)
 		cfg.To(box.Ctx{
 			Request: v.req(),
+			Logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+				Level: slog.LevelDebug,
+			})),
 		})
 	}
 }
