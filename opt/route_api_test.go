@@ -401,7 +401,7 @@ func TestRouteAPI(t *testing.T) {
 					A int `vd:"min=5"`
 				}
 			}) {
-				assert.FailNow(t, "should not be reached")
+				assert.Error(t, ctx.VdErr())
 			},
 		},
 	} {

@@ -198,7 +198,7 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 					),
 					slog.Any("error", err),
 				)
-				return
+				ctx.SetAttribute(box.BiuAttrVdErr, err)
 			}
 		}
 		vf.Call([]reflect.Value{reflect.ValueOf(ctx), sv})

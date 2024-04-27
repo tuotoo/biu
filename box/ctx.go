@@ -28,6 +28,7 @@ const (
 	BiuAttrRouteID    = "__BIU_ROUTE_ID__"
 	BiuAttrAuthUserID = "__BIU_AUTH_USER_ID__"
 	BiuAttrEntities   = "__BIU_ENTITIES__"
+	BiuAttrVdErr      = "__BIU_VALIDATE_ERROR_"
 )
 
 const CtxSignature = "github.com/tuotoo/biu/box.Ctx"
@@ -98,6 +99,13 @@ func (ctx *Ctx) ContainsError(err error, code int, v ...any) bool {
 	}
 	ctx.ResponseStdErrCode(code, v...)
 	return true
+}
+
+func (ctx *Ctx) VdErr() error {
+	if err, ok := ctx.Attribute(BiuAttrVdErr).(error); ok {
+		return err
+	}
+	return nil
 }
 
 type errHandler struct {
