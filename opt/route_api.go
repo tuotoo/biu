@@ -26,16 +26,21 @@ type defaultValidator struct {
 	validate *validator.Validate
 }
 
-func (v *defaultValidator) validateStruct(ctx context.Context, obj any) error {
+func (v *defaultValidator) StructCtx(ctx context.Context, obj any) error {
 	v.lazyInit()
 	return v.validate.StructCtx(ctx, obj)
 }
 
 func (v *defaultValidator) lazyInit() {
 	v.once.Do(func() {
-		v.validate = validator.New()
+		v.validate = validator.New(validator.WithRequiredStructEnabled())
 		v.validate.SetTagName("vd")
 	})
+}
+
+func (v *defaultValidator) Get() *validator.Validate {
+	v.lazyInit()
+	return v.validate
 }
 
 var Validator = &defaultValidator{}
@@ -190,7 +195,7 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 		if slices.ContainsFunc(params, func(opt ParamOpt) bool {
 			return opt.HasVd
 		}) {
-			if err := Validator.validateStruct(ctx.Req().Context(), sv.Interface()); err != nil {
+			if err := Validator.StructCtx(ctx.Req().Context(), sv.Interface()); err != nil {
 				ctx.Logger.DebugContext(ctx.Req().Context(), "parameter validate failed",
 					slog.Group("route",
 						slog.String("id", ctx.RouteID()),
