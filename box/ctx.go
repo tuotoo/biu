@@ -253,7 +253,7 @@ func filterFlags(content string) string {
 }
 
 // Bind checks the Content-Type to select a binding engine automatically,
-// Depending the "Content-Type" header different bindings are used:
+// Depending on the "Content-Type" header different bindings are used:
 //
 //	"application/json" --> JSON binding
 //	"application/xml"  --> XML binding

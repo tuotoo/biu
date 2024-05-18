@@ -17,10 +17,12 @@ type pathExpression struct {
 	tokens       []string
 }
 
+type PathExpression = pathExpression
+
 //go:linkname newPathExpression github.com/emicklei/go-restful/v3.newPathExpression
 func newPathExpression(path string) (*pathExpression, error)
 
-func NewPathExpression(path string) (*pathExpression, error) {
+func NewPathExpression(path string) (*PathExpression, error) {
 	return newPathExpression(path)
 }
 

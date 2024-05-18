@@ -32,7 +32,7 @@ const (
 	MIME_FILE_FORM = "multipart/form-data"
 )
 
-var AutoGenPathDoc = false
+var AutoGenPathDoc = true
 
 // Route creates a new Route using the RouteBuilder
 // and add to the ordered list of Routes.
