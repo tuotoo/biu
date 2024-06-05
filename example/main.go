@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"braces.dev/errtrace"
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
@@ -21,13 +20,11 @@ type Foo struct{}
 
 // WebService implements CtlInterface
 func (ctl Foo) WebService(ws biu.WS) {
-	ws.Route(ws.GET("/").Doc("Get Bar").
-		Param(ws.QueryParameter("num", "number")).
-		DefaultReturns("Bar", Bar{}),
+	ws.Route(ws.GET("/").Doc("Get Bar"),
 		opt.RouteID("example.foo"),
-		opt.RouteTo(ctl.getBar),
+		opt.RouteAPI(ctl.getBar),
 		opt.RouteErrors(map[int]string{
-			200: "%s is not a Number",
+			200: "%s is not a valid Number",
 		}),
 	)
 
@@ -43,11 +40,14 @@ type Bar struct {
 }
 
 // try with: curl "127.0.0.1:8080/v1/foo?num=hey"
-func (ctl Foo) getBar(ctx box.Ctx) {
-	num, err := ctx.Query("num").Int()
-	ctx.Must(errtrace.Wrap(err), 200, ctx.QueryParameter("num"))
-
-	ctx.ResponseJSON(Bar{Msg: "bar", Num: num})
+func (ctl Foo) getBar(ctx box.Ctx, api struct {
+	Query struct {
+		Num int `desc:"number" vd:"min=3"`
+	}
+	Return func(Bar)
+}) {
+	ctx.Must(ctx.VdErr(), 200, ctx.QueryParameter("num"))
+	api.Return(Bar{Msg: "bar", Num: api.Query.Num})
 }
 
 func main() {
