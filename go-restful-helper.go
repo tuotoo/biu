@@ -347,7 +347,7 @@ type TestServer struct {
 
 // WithT accept testing.T and returns httpexpect.Expect
 func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
-	return httpexpect.New(t, s.URL)
+	return httpexpect.Default(t, s.URL)
 }
 
 // LogFilter logs
