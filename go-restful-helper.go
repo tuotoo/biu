@@ -12,12 +12,10 @@ import (
 	"reflect"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	"github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
-	"github.com/gavv/httpexpect/v2"
 	"github.com/go-openapi/spec"
 
 	"github.com/tuotoo/biu/box"
@@ -343,11 +341,6 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 // TestServer wraps a httptest.Server
 type TestServer struct {
 	*httptest.Server
-}
-
-// WithT accept testing.T and returns httpexpect.Expect
-func (s *TestServer) WithT(t *testing.T) *httpexpect.Expect {
-	return httpexpect.Default(t, s.URL)
 }
 
 // LogFilter logs

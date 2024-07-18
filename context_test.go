@@ -4,12 +4,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gavv/httpexpect/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/tuotoo/biu/auth"
 	"github.com/tuotoo/biu/box"
+	"github.com/tuotoo/biu/expect"
 )
 
 type MockAuthTokenManager struct {
@@ -17,7 +17,7 @@ type MockAuthTokenManager struct {
 
 func (m MockAuthTokenManager) SignWithClaims(uid string, claims map[string]any) (token string, err error) {
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"uid": "1",
+		"uid": uid,
 	})
 	return tok.SignedString([]byte(""))
 }
@@ -37,8 +37,7 @@ func TestAuthFilter(t *testing.T) {
 	authInstance := &auth.Instance{
 		ITokenManager: MockAuthTokenManager{},
 	}
-	token, err := authInstance.Sign("")
-	assert.NoError(t, err)
+
 	e.Filter(AuthFilter(100, authInstance))
 	ws := e.NewWS()
 	ws.Route(ws.POST("/auth"), ws.RouteAPI(func(ctx box.Ctx, api struct {
@@ -51,9 +50,11 @@ func TestAuthFilter(t *testing.T) {
 	s := httptest.NewServer(e)
 	defer s.Close()
 
-	httpexpect.Default(t, s.URL).POST("/auth").
+	expect.Default(t, s.URL).POST("/auth").
 		Expect().JSON().Object().HasValue("code", 100)
 
-	httpexpect.Default(t, s.URL).POST("/auth").WithHeader("Authorization", token).
+	token, err := authInstance.Sign("1")
+	assert.NoError(t, err)
+	expect.Default(t, s.URL).POST("/auth").WithHeader("Authorization", token).
 		Expect().JSON().Object().HasValue("code", 0)
 }
