@@ -3,6 +3,9 @@ package param
 import (
 	"reflect"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParameter_Bool(t *testing.T) {
@@ -308,4 +311,102 @@ func TestParameter_BytesDefault(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParameter_Time(t *testing.T) {
+	f := func(p Parameter, result time.Time, errIs error) {
+		tt, err := p.Time(time.DateOnly)
+		if errIs != nil {
+			assert.ErrorAs(t, err, &errIs)
+		} else {
+			assert.NoError(t, err)
+		}
+		assert.Equal(t, result, tt)
+	}
+	f(Parameter{
+		value: []string{"2024-01-06"},
+	}, time.Date(2024, time.January, 6, 0, 0, 0, 0, time.UTC), nil)
+	f(Parameter{
+		value: nil,
+	}, time.Time{}, ErrParamIsEmpty)
+	f(Parameter{
+		value: []string{"2024"},
+	}, time.Time{}, &time.ParseError{})
+	f(Parameter{
+		error: ErrParamIsEmpty,
+	}, time.Time{}, ErrParamIsEmpty)
+}
+
+func TestParameter_Int64(t *testing.T) {
+	f := func(p Parameter, result int64, errContains string) {
+		i, err := p.Int64()
+		if errContains != "" {
+			assert.ErrorContains(t, err, errContains)
+		} else {
+			assert.NoError(t, err)
+		}
+		assert.Equal(t, result, i)
+	}
+	f(Parameter{
+		value: []string{"1"},
+	}, 1, "")
+	f(Parameter{
+		value: nil,
+	}, 0, "parameter is empty")
+	f(Parameter{
+		value: []string{"a"},
+	}, 0, "invalid syntax")
+	f(Parameter{
+		error: ErrParamIsEmpty,
+	}, 0, "parameter is empty")
+}
+
+func TestParameter_UInt64(t *testing.T) {
+	f := func(p Parameter, result uint64, errContains string) {
+		i, err := p.Uint64()
+		if errContains != "" {
+			assert.ErrorContains(t, err, errContains)
+		} else {
+			assert.NoError(t, err)
+		}
+		assert.Equal(t, result, i)
+	}
+	f(Parameter{
+		value: []string{"1"},
+	}, 1, "")
+	f(Parameter{
+		value: nil,
+	}, 0, "parameter is empty")
+	f(NewParameter([]string{"-1"}, nil), 1, "")
+	f(Parameter{
+		value: []string{"a"},
+	}, 0, "invalid syntax")
+	f(Parameter{
+		error: ErrParamIsEmpty,
+	}, 0, "parameter is empty")
+}
+
+func TestParameter_Int(t *testing.T) {
+	f := func(p Parameter, result int, errContains string) {
+		i, err := p.Int()
+		if errContains != "" {
+			assert.ErrorContains(t, err, errContains)
+		} else {
+			assert.NoError(t, err)
+		}
+		assert.Equal(t, result, i)
+	}
+	f(Parameter{
+		value: []string{"1"},
+	}, 1, "")
+	f(Parameter{
+		value: nil,
+	}, 0, "parameter is empty")
+	f(NewParameter([]string{"-1"}, nil), -1, "")
+	f(Parameter{
+		value: []string{"a"},
+	}, 0, "invalid syntax")
+	f(Parameter{
+		error: ErrParamIsEmpty,
+	}, 0, "parameter is empty")
 }
