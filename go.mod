@@ -7,7 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/emicklei/go-restful-openapi/v2 v2.11.0
 	github.com/emicklei/go-restful/v3 v3.12.2
-	github.com/gin-gonic/gin v1.10.0
+	github.com/gin-gonic/gin v1.10.1
 	github.com/go-openapi/spec v0.21.0
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
@@ -38,7 +38,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ugorji/go/codec v1.2.12 // indirect
+	github.com/ugorji/go/codec v1.2.14 // indirect
 	golang.org/x/arch v0.17.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
