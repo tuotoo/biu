@@ -2,9 +2,9 @@ name: Test
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [master, develop]
   pull_request:
-    branches: [ master, develop ]
+    branches: [master, develop]
 
 jobs:
   build:
@@ -14,18 +14,18 @@ jobs:
       contents: read
     strategy:
       matrix:
-        go-version: ['1.21.x','1.22.x','1.23.x', '1.24.x']
+        go-version: ['1.21.x', '1.22.x', '1.23.x', '1.24.x', '1.25.x']
     steps:
-    - name: Set up Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
-      id: go
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v4
-    - name: Get dependencies
-      run: go mod download
-    - name: vet
-      run: go vet ./...
-    - name: test
-      run: go test -race -v ./...
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+        id: go
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+      - name: Get dependencies
+        run: go mod download
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test -race -v ./...
