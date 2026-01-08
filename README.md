@@ -6,6 +6,7 @@ a set of toolkits for [go-restful](https://github.com/emicklei/go-restful).
 [![GoDoc](https://godoc.org/github.com/tuotoo/biu?status.svg)](https://godoc.org/github.com/tuotoo/biu)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tuotoo/biu)](https://goreportcard.com/report/github.com/tuotoo/biu)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/tuotoo/biu)
 
 ## Installation
 
@@ -31,7 +32,7 @@ All our projects follow the [GitFlow branching model](http://nvie.com/posts/a-su
 - [httpexpect](https://github.com/gavv/httpexpect)
 - [easyjson](https://github.com/mailru/easyjson)
 - [pocket](https://github.com/Southclaws/pocket)
-- ...and many more Open Source *Cool* Go Projects :star2:
+- ...and many more Open Source _Cool_ Go Projects :star2:
 
 kindly supperted by [Jetbrains Open Source License](https://www.jetbrains.com/community/opensource/?from=biu)
 
