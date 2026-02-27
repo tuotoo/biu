@@ -56,6 +56,8 @@ type ParamOpt struct {
 	Body      any
 	Return    any
 	HasVd     bool
+	// FieldIndex caches the index path for fast field access via FieldByIndex
+	FieldIndex []int
 }
 
 // Route is the options of route.

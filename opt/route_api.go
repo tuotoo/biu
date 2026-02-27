@@ -231,16 +231,32 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 	switch opt.FieldType {
 	case FieldQuery:
 		p = ctx.Query(opt.Name)
-		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		if len(opt.FieldIndex) > 0 {
+			field = sv.FieldByIndex(opt.FieldIndex)
+		} else {
+			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		}
 	case FieldPath:
 		p = ctx.Path(opt.Name)
-		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		if len(opt.FieldIndex) > 0 {
+			field = sv.FieldByIndex(opt.FieldIndex)
+		} else {
+			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		}
 	case FieldForm:
 		p = ctx.Form(opt.Name)
-		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		if len(opt.FieldIndex) > 0 {
+			field = sv.FieldByIndex(opt.FieldIndex)
+		} else {
+			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		}
 	case FieldHeader:
 		p = ctx.Header(opt.Name)
-		field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		if len(opt.FieldIndex) > 0 {
+			field = sv.FieldByIndex(opt.FieldIndex)
+		} else {
+			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
+		}
 	case FieldBody:
 		bodyBs, _ := io.ReadAll(ctx.Req().Body)
 		p = param.NewParameter([]string{string(bodyBs)}, nil)
@@ -454,15 +470,23 @@ func appendParam(o appendParamOptions) []ParamOpt {
 		if tagFormat, ok := tags[APITagFormat]; ok {
 			typ.format = tagFormat
 		}
+		// Build index path for fast field access: [FieldTypeIndex, FieldNameIndex]
+		var fieldIndex []int
+		if parentField, ok := o.t.FieldByName(o.field.String()); ok {
+			if childField, ok := parentField.Type.FieldByName(fieldName); ok {
+				fieldIndex = append(parentField.Index, childField.Index...)
+			}
+		}
 		o.params = append(o.params, ParamOpt{
-			FieldType: o.field,
-			Name:      name,
-			Type:      typ.typ,
-			Format:    typ.format,
-			IsMulti:   typ.multi,
-			FieldName: fieldName,
-			Desc:      tags[APITagDesc],
-			HasVd:     hasVd,
+			FieldType:  o.field,
+			Name:       name,
+			Type:       typ.typ,
+			Format:     typ.format,
+			IsMulti:    typ.multi,
+			FieldName:  fieldName,
+			Desc:       tags[APITagDesc],
+			HasVd:      hasVd,
+			FieldIndex: fieldIndex,
 		})
 	}
 	return o.params
