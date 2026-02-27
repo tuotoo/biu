@@ -15,6 +15,8 @@ github.com/emicklei/go-restful/v3 v3.13.0 h1:C4Bl2xDndpU6nJ4bc1jXd+uTmYPVUwkD6bF
 github.com/emicklei/go-restful/v3 v3.13.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/erraggy/oastools v1.48.3 h1:hpQh28gLwmaIuM1c/OurolQMMRaOEU3CAGAKysiNJ8k=
 github.com/erraggy/oastools v1.48.3/go.mod h1:1U7LfGd3G2jDu+9YL2tbZEk9d7fELq91T2d6iFX4CiQ=
+github.com/erraggy/oastools v1.52.2 h1:I22zQ80dukg1ZyXxNm8CHwo4Xqa8hza4DkzK3iraRp8=
+github.com/erraggy/oastools v1.52.2/go.mod h1:XdQfIKB7qYASVM5PdPf2BFkOg4YAcnnvrRGszq8GyUI=
 github.com/gabriel-vasile/mimetype v1.4.13 h1:46nXokslUBsAJE/wMsp5gtO500a4F3Nkz9Ufpk2AcUM=
 github.com/gabriel-vasile/mimetype v1.4.13/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
 github.com/gin-gonic/gin v1.11.0 h1:OW/6PLjyusp2PPXtyxKHU0RbX6I/l28FTdDlae5ueWk=
