@@ -96,34 +96,38 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 	var params []ParamOpt
 	if header, ok := second.FieldByName(FieldHeader.String()); ok {
 		params = appendParam(appendParamOptions{
-			t:      header.Type,
-			field:  FieldHeader,
-			params: params,
-			logger: logger,
+			t:           header.Type,
+			field:       FieldHeader,
+			params:      params,
+			logger:      logger,
+			parentIndex: header.Index,
 		})
 	}
 	if path, ok := second.FieldByName(FieldPath.String()); ok {
 		params = appendParam(appendParamOptions{
-			t:      path.Type,
-			field:  FieldPath,
-			params: params,
-			logger: logger,
+			t:           path.Type,
+			field:       FieldPath,
+			params:      params,
+			logger:      logger,
+			parentIndex: path.Index,
 		})
 	}
 	if query, ok := second.FieldByName(FieldQuery.String()); ok {
 		params = appendParam(appendParamOptions{
-			t:      query.Type,
-			field:  FieldQuery,
-			params: params,
-			logger: logger,
+			t:           query.Type,
+			field:       FieldQuery,
+			params:      params,
+			logger:      logger,
+			parentIndex: query.Index,
 		})
 	}
 	if form, ok := second.FieldByName(FieldForm.String()); ok {
 		params = appendParam(appendParamOptions{
-			t:      form.Type,
-			field:  FieldForm,
-			params: params,
-			logger: logger,
+			t:           form.Type,
+			field:       FieldForm,
+			params:      params,
+			logger:      logger,
+			parentIndex: form.Index,
 		})
 	}
 	if body, ok := second.FieldByName(FieldBody.String()); ok {
@@ -140,9 +144,10 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 			bodyExampleValue = reflect.New(bodyType).Elem().Interface()
 		}
 		params = append(params, ParamOpt{
-			FieldType: FieldBody,
-			Body:      bodyExampleValue,
-			Desc:      body.Tag.Get(APITagDesc),
+			FieldType:  FieldBody,
+			Body:       bodyExampleValue,
+			Desc:       body.Tag.Get(APITagDesc),
+			FieldIndex: body.Index,
 		})
 	}
 	if ret, ok := second.FieldByName(FieldReturn.String()); ok {
@@ -155,9 +160,10 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 			os.Exit(1)
 		}
 		params = append(params, ParamOpt{
-			FieldType: FieldReturn,
-			Return:    reflect.New(ret.Type.In(0)).Interface(),
-			Desc:      ret.Tag.Get(APITagDesc),
+			FieldType:  FieldReturn,
+			Return:     reflect.New(ret.Type.In(0)).Interface(),
+			Desc:       ret.Tag.Get(APITagDesc),
+			FieldIndex: ret.Index,
 		})
 	}
 
@@ -166,10 +172,11 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 		for _, v := range params {
 			switch v.FieldType {
 			case FieldBody:
-				bodyType := sv.FieldByName(FieldBody.String()).Type()
+				bodyField := sv.FieldByIndex(v.FieldIndex)
+				bodyType := bodyField.Type()
 				switch typeSignature(bodyType) {
 				case "io.ReadCloser", "io.Reader":
-					sv.FieldByName(FieldBody.String()).Set(reflect.ValueOf(ctx.Req().Body))
+					bodyField.Set(reflect.ValueOf(ctx.Req().Body))
 					continue
 				}
 				if bodyType.Kind() != reflect.Struct && !(bodyType.Kind() == reflect.Ptr && bodyType.Elem().Kind() == reflect.Struct) {
@@ -178,9 +185,9 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 				}
 				body := reflect.New(bodyType).Interface()
 				_ = ctx.Bind(body)
-				sv.FieldByName(FieldBody.String()).Set(reflect.ValueOf(body).Elem())
+				bodyField.Set(reflect.ValueOf(body).Elem())
 			case FieldReturn:
-				sv.FieldByName(FieldReturn.String()).Set(reflect.MakeFunc(sv.FieldByName(FieldReturn.String()).Type(),
+				sv.FieldByIndex(v.FieldIndex).Set(reflect.MakeFunc(sv.FieldByIndex(v.FieldIndex).Type(),
 					func(args []reflect.Value) (results []reflect.Value) {
 						if len(args) < 1 {
 							return nil
@@ -231,36 +238,20 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 	switch opt.FieldType {
 	case FieldQuery:
 		p = ctx.Query(opt.Name)
-		if len(opt.FieldIndex) > 0 {
-			field = sv.FieldByIndex(opt.FieldIndex)
-		} else {
-			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
-		}
+		field = sv.FieldByIndex(opt.FieldIndex)
 	case FieldPath:
 		p = ctx.Path(opt.Name)
-		if len(opt.FieldIndex) > 0 {
-			field = sv.FieldByIndex(opt.FieldIndex)
-		} else {
-			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
-		}
+		field = sv.FieldByIndex(opt.FieldIndex)
 	case FieldForm:
 		p = ctx.Form(opt.Name)
-		if len(opt.FieldIndex) > 0 {
-			field = sv.FieldByIndex(opt.FieldIndex)
-		} else {
-			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
-		}
+		field = sv.FieldByIndex(opt.FieldIndex)
 	case FieldHeader:
 		p = ctx.Header(opt.Name)
-		if len(opt.FieldIndex) > 0 {
-			field = sv.FieldByIndex(opt.FieldIndex)
-		} else {
-			field = sv.FieldByName(opt.FieldType.String()).FieldByName(opt.FieldName)
-		}
+		field = sv.FieldByIndex(opt.FieldIndex)
 	case FieldBody:
 		bodyBs, _ := io.ReadAll(ctx.Req().Body)
 		p = param.NewParameter([]string{string(bodyBs)}, nil)
-		field = sv.FieldByName(opt.FieldType.String())
+		field = sv.FieldByIndex(opt.FieldIndex)
 	default:
 		return
 	}
@@ -430,10 +421,11 @@ func setPtr(field reflect.Value, p param.Parameter) {
 }
 
 type appendParamOptions struct {
-	t      reflect.Type
-	field  FieldType
-	params []ParamOpt
-	logger *slog.Logger
+	t           reflect.Type
+	field       FieldType
+	params      []ParamOpt
+	logger      *slog.Logger
+	parentIndex []int
 }
 
 func appendParam(o appendParamOptions) []ParamOpt {
@@ -470,13 +462,8 @@ func appendParam(o appendParamOptions) []ParamOpt {
 		if tagFormat, ok := tags[APITagFormat]; ok {
 			typ.format = tagFormat
 		}
-		// Build index path for fast field access: [FieldTypeIndex, FieldNameIndex]
-		var fieldIndex []int
-		if parentField, ok := o.t.FieldByName(o.field.String()); ok {
-			if childField, ok := parentField.Type.FieldByName(fieldName); ok {
-				fieldIndex = append(parentField.Index, childField.Index...)
-			}
-		}
+		// Build index path for fast field access: [parentIndex..., currentFieldIndex]
+		fieldIndex := append(o.parentIndex, o.t.Field(i).Index...)
 		o.params = append(o.params, ParamOpt{
 			FieldType:  o.field,
 			Name:       name,
