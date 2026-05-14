@@ -2,6 +2,7 @@ package biu
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/tuotoo/biu/box"
 	"github.com/tuotoo/biu/internal"
+	"github.com/tuotoo/biu/internal/cert"
 	"github.com/tuotoo/biu/opt"
 )
 
@@ -307,6 +309,13 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 		}
 	}
 
+	// TLS mode: delegate to runTLS
+	if cfg.TLS != nil {
+		runTLS(addr, c, cfg)
+		return
+	}
+
+	// HTTP mode (existing behavior, unchanged)
 	c.Server = &http.Server{
 		Addr:    addr,
 		Handler: c,
@@ -336,6 +345,89 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 	c.logger.Debug("Server Shutdown", slog.Any("err", c.Server.Shutdown(cfg.Ctx)))
 	<-cfg.Ctx.Done()
 	cfg.AfterShutDown()
+}
+
+// runTLS starts the container with automatic TLS via Let's Encrypt / ZeroSSL.
+func runTLS(addr string, c *Container, cfg *opt.Run) {
+	// Detect IP if auto-detection requested
+	if cfg.TLS.Mode == opt.TLSModeIP && cfg.TLS.IP == "" {
+		ip, err := cert.DetectPublicIP("")
+		if err != nil {
+			c.logger.Error("auto-detect public IP failed", slog.Any("err", err))
+			os.Exit(1)
+		}
+		cfg.TLS.IP = ip
+		c.logger.Info("auto-detected public IP", slog.String("ip", ip))
+	}
+
+	// Pass logger to TLS config
+	cfg.TLS.Logger = c.logger
+
+	// Create cert manager (loads from cache or obtains new)
+	cm, err := cert.NewCertManager(*cfg.TLS)
+	if err != nil {
+		c.logger.Error("create cert manager", slog.Any("err", err))
+		os.Exit(1)
+	}
+
+	// Start auto-renewal
+	cm.StartAutoRenew(cfg.Ctx)
+	defer func() {
+		if err := cm.Shutdown(cfg.Ctx); err != nil {
+			c.logger.Error("cert manager shutdown", slog.Any("err", err))
+		}
+	}()
+
+	// Set up TLS server
+	c.Server = &http.Server{
+		Addr:      addr,
+		Handler:   c,
+		TLSConfig: cm.TLSConfig(),
+	}
+
+	addrChan := make(chan string)
+
+	go func() {
+		c.logger.Debug("listen and serve TLS", slog.Any("err", ListenAndServeTLS(c.Server, addrChan)))
+		if cfg.Cancel != nil {
+			cfg.Cancel()
+		}
+	}()
+
+	select {
+	case listenAddr := <-addrChan:
+		c.logger.Debug("listening", slog.String("addr", listenAddr))
+		cfg.AfterStart()
+	case <-time.After(time.Second):
+		c.logger.Error("start TLS server timeout")
+		os.Exit(1)
+	}
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	c.logger.Debug("Received Signal", slog.Any("signal", <-ch))
+
+	cfg.BeforeShutDown()
+	c.logger.Debug("TLS Server Shutdown", slog.Any("err", c.Server.Shutdown(cfg.Ctx)))
+	<-cfg.Ctx.Done()
+	cfg.AfterShutDown()
+}
+
+// ListenAndServeTLS listens on TCP and serves TLS with the server's TLSConfig.
+func ListenAndServeTLS(srv *http.Server, addrChan chan<- string) error {
+	addr := srv.Addr
+	if addr == "" {
+		addr = ":https"
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listen TLS: %w", err)
+	}
+	tcpListener := ln.(*net.TCPListener)
+	addrChan <- tcpListener.Addr().String()
+	srv.Addr = tcpListener.Addr().String()
+
+	return srv.ServeTLS(tcpKeepAliveListener{TCPListener: tcpListener}, "", "")
 }
 
 // TestServer wraps a httptest.Server

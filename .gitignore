@@ -1,2 +1,5 @@
 .idea/
-.fleet
+.fleet/
+.pi-lens/
+.context/
+docs/
