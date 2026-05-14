@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -185,9 +186,7 @@ func addService(
 	for _, f := range opts {
 		f(cfg)
 	}
-	for k, v := range cfg.Errors {
-		container.errors[k] = v
-	}
+	maps.Copy(container.errors, cfg.Errors)
 	commonWS := container.NewWS()
 	commonWS.Path(prefix).Produces(restful.MIME_JSON)
 	var filterAdded bool

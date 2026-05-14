@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"time"
 
@@ -94,15 +95,13 @@ func (cm *CertManager) TLSConfig() *tls.Config {
 // getConfigForClient handles TLS-ALPN-01 challenge on port 443.
 func (cm *CertManager) getConfigForClient(hello *tls.ClientHelloInfo) (*tls.Config, error) {
 	// Check if this is an ACME TLS-ALPN-01 validation request
-	for _, proto := range hello.SupportedProtos {
-		if proto == "acme-tls/1" {
-			// Use a separate config for ALPN challenge
-			return &tls.Config{
-				GetCertificate: cm.getCertificate,
-				NextProtos:     []string{"acme-tls/1"},
-				MinVersion:     tls.VersionTLS12,
-			}, nil
-		}
+	if slices.Contains(hello.SupportedProtos, "acme-tls/1") {
+		// Use a separate config for ALPN challenge
+		return &tls.Config{
+			GetCertificate: cm.getCertificate,
+			NextProtos:     []string{"acme-tls/1"},
+			MinVersion:     tls.VersionTLS12,
+		}, nil
 	}
 	return nil, nil // use default config
 }

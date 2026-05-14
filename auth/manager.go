@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -27,9 +28,7 @@ func (i *TokenManager[S, V, M, T]) SignWithClaims(uid string, claims map[string]
 		"exp": now.Add(i.timeout).Unix(),
 		"iat": now.Unix(),
 	}
-	for k, v := range claims {
-		_claims[k] = v
-	}
+	maps.Copy(_claims, claims)
 	jwtToken := jwt.NewWithClaims(i.alg.SigningMethod(), _claims)
 
 	sec, err := i.alg.SecretKeyFunc(uid)

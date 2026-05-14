@@ -132,7 +132,7 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 	}
 	if body, ok := second.FieldByName(FieldBody.String()); ok {
 		bodyType := body.Type
-		if body.Type.Kind() == reflect.Ptr {
+		if body.Type.Kind() == reflect.Pointer {
 			bodyType = bodyType.Elem()
 		}
 		var bodyExampleValue any
@@ -179,7 +179,7 @@ func RouteAPI(f any, opts ...RouteAPIOpts) RouteFunc {
 					bodyField.Set(reflect.ValueOf(ctx.Req().Body))
 					continue
 				}
-				if bodyType.Kind() != reflect.Struct && !(bodyType.Kind() == reflect.Ptr && bodyType.Elem().Kind() == reflect.Struct) {
+				if bodyType.Kind() != reflect.Struct && !(bodyType.Kind() == reflect.Pointer && bodyType.Elem().Kind() == reflect.Struct) {
 					setField(sv, ctx, v)
 					continue
 				}
@@ -256,7 +256,7 @@ func setField(sv reflect.Value, ctx box.Ctx, opt ParamOpt) {
 		return
 	}
 	switch field.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		setPtr(field, p)
 	case reflect.String:
 		field.SetString(p.StringDefault(""))
@@ -432,8 +432,8 @@ func appendParam(o appendParamOptions) []ParamOpt {
 	for i := 0; i < o.t.NumField(); i++ {
 		tags := make(map[string]string)
 		if cfg, ok := o.t.Field(i).Tag.Lookup("biu"); ok {
-			items := strings.Split(cfg, ";")
-			for _, item := range items {
+			items := strings.SplitSeq(cfg, ";")
+			for item := range items {
 				sp := strings.Split(item, ":")
 				if len(sp) > 1 {
 					tags[sp[0]] = sp[1]
@@ -486,7 +486,7 @@ type baseType struct {
 }
 
 func getBaseType(t reflect.Type) (*baseType, error) {
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	var typ, format string

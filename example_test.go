@@ -1,5 +1,4 @@
 //go:build Example
-// +build Example
 
 package biu_test
 
