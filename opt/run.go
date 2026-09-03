@@ -51,6 +51,19 @@ type Run struct {
 	Ctx            context.Context
 	Cancel         context.CancelFunc
 	TLS            *TLSConfig // nil means TLS is not enabled
+	Pprof          *PprofConfig // nil means pprof is not enabled
+}
+
+// PprofConfig controls the standalone pprof debug server.
+// The server listens on its own address (loopback by default) and is
+// independent from the main HTTP/TLS service.
+type PprofConfig struct {
+	// Addr is the listen address for the pprof server.
+	// Default "127.0.0.1:6060". Use a loopback address in production.
+	Addr string
+	// Token, when non-empty, requires every request to carry token=<value>
+	// as a query parameter. Requests without a matching token get 404.
+	Token string
 }
 
 func AfterStart(f func()) RunFunc {
@@ -163,5 +176,31 @@ func WithTLSCA(ca CA) RunFunc {
 		if opt.TLS != nil {
 			opt.TLS.CA = ca
 		}
+	}
+}
+
+// WithPprof enables a standalone pprof debug server listening on addr.
+// The server is independent from the main HTTP/TLS service and shares
+// the Run lifecycle (shutdown happens alongside the main server).
+// addr defaults to "127.0.0.1:6060" when empty. Bind to a loopback
+// address in production; pprof exposes runtime profile data.
+func WithPprof(addr string) RunFunc {
+	return func(opt *Run) {
+		if opt.Pprof == nil {
+			opt.Pprof = &PprofConfig{}
+		}
+		opt.Pprof.Addr = addr
+	}
+}
+
+// WithPprofToken gates the pprof server: every request must carry
+// token=<value> as a query parameter. Requests without a matching
+// token get 404. Must be called after WithPprof.
+func WithPprofToken(token string) RunFunc {
+	return func(opt *Run) {
+		if opt.Pprof == nil {
+			opt.Pprof = &PprofConfig{}
+		}
+		opt.Pprof.Token = token
 	}
 }

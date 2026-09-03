@@ -163,6 +163,41 @@ func TestTLS_Defaults(t *testing.T) {
 	assert.Nil(t, run.TLS.DNSProvider)
 }
 
+func TestWithPprof(t *testing.T) {
+	run := &opt.Run{}
+	opt.WithPprof("127.0.0.1:6061")(run)
+	assert.NotNil(t, run.Pprof)
+	assert.Equal(t, "127.0.0.1:6061", run.Pprof.Addr)
+	assert.Empty(t, run.Pprof.Token)
+}
+
+func TestWithPprof_EmptyAddr(t *testing.T) {
+	run := &opt.Run{}
+	opt.WithPprof("")(run)
+	assert.NotNil(t, run.Pprof)
+	assert.Empty(t, run.Pprof.Addr)
+}
+
+func TestWithPprofToken(t *testing.T) {
+	run := &opt.Run{}
+	opt.WithPprof("127.0.0.1:6061")(run)
+	opt.WithPprofToken("secret")(run)
+	assert.Equal(t, "secret", run.Pprof.Token)
+}
+
+func TestWithPprofToken_CreatesConfig(t *testing.T) {
+	run := &opt.Run{}
+	opt.WithPprofToken("secret")(run)
+	assert.NotNil(t, run.Pprof)
+	assert.Equal(t, "secret", run.Pprof.Token)
+	assert.Empty(t, run.Pprof.Addr)
+}
+
+func TestWithoutPprof(t *testing.T) {
+	run := &opt.Run{}
+	assert.Nil(t, run.Pprof)
+}
+
 // mockDNSProvider implements challenge.Provider for testing
 type mockDNSProvider struct{}
 

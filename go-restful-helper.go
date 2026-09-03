@@ -335,7 +335,21 @@ func run(addr string, c *Container, opts ...opt.RunFunc) {
 		c.logger.Error("start server timeout")
 		os.Exit(1)
 	}
-
+	if cfg.Pprof != nil {
+		pprofSrv, pprofAddrChan := startPprof(cfg.Pprof, c.logger)
+		select {
+		case paddr := <-pprofAddrChan:
+			c.logger.Debug("pprof server", slog.String("addr", paddr))
+		case <-time.After(time.Second):
+			c.logger.Error("start pprof server timeout")
+			os.Exit(1)
+		}
+		userBeforeShutDown := cfg.BeforeShutDown
+		cfg.BeforeShutDown = func() {
+			userBeforeShutDown()
+			c.logger.Debug("pprof shutdown", slog.Any("err", pprofSrv.Shutdown(cfg.Ctx)))
+		}
+	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	c.logger.Debug("Received Signal", slog.Any("signal", <-ch))
@@ -401,7 +415,21 @@ func runTLS(addr string, c *Container, cfg *opt.Run) {
 		c.logger.Error("start TLS server timeout")
 		os.Exit(1)
 	}
-
+	if cfg.Pprof != nil {
+		pprofSrv, pprofAddrChan := startPprof(cfg.Pprof, c.logger)
+		select {
+		case paddr := <-pprofAddrChan:
+			c.logger.Debug("pprof server", slog.String("addr", paddr))
+		case <-time.After(time.Second):
+			c.logger.Error("start pprof server timeout")
+			os.Exit(1)
+		}
+		userBeforeShutDown := cfg.BeforeShutDown
+		cfg.BeforeShutDown = func() {
+			userBeforeShutDown()
+			c.logger.Debug("pprof shutdown", slog.Any("err", pprofSrv.Shutdown(cfg.Ctx)))
+		}
+	}
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	c.logger.Debug("Received Signal", slog.Any("signal", <-ch))
